@@ -20,7 +20,8 @@ the log of what each stage added. The authoritative "what is done" summary is th
 | T12 | Lookup repository | done |
 | T13 | Employee read operations (multi-mapping) | done |
 | T14 | Employee create/update | done |
-| T15+ | Application features | pending |
+| T15 | Employee soft delete with referential protection | done |
+| T16+ | Application features | pending |
 
 ## T01–T04 — Infrastructure and database
 
@@ -73,7 +74,7 @@ T10 added the seven repository and service interfaces — 28 methods, `Cancellat
 ct = default` on every one, `Task<T?>` on the four single-record lookups, and DTO/request
 types (never entities) crossing the repository boundary.
 
-## T11–T14 — Data access
+## T11–T15 — Data access
 
 T11 added `RepositoryBase`: `OpenAsync`, the only transaction runner in the solution, and
 `TranslateSql` for SQL Server errors 2627/2601/547. See
@@ -106,10 +107,19 @@ either side, so the unique indexes stay usable. The explicit checks only produce
 message; the unique constraints behind them are translated to the same conflict, which
 guards against two concurrent creates.
 
+T15 added `DeleteEmployeeAsync`, a soft delete: the row stays, only `IsActive` becomes 0.
+The method runs in one transaction and re-reads the employee with `UPDLOCK, ROWLOCK`
+first, so concurrent deactivations serialise instead of racing. A missing id raises
+`NotFoundException`, an already inactive employee returns successfully without writing
+(A6), and two guards can block the update with a `ConflictException` (A7): active employees
+still reporting to this manager, or an assignment on a project whose status is `Active`.
+Planning, Completed and Cancelled projects do not block, and neither does an assignment on
+a project the employee finished. There is no `DELETE FROM dbo.Employees` anywhere in the
+solution, so an employee is never physically removed.
+
 ## Next
 
-T15 onward adds the application features: the remaining repository methods
-(`DeleteEmployeeAsync` as a soft delete, `UpdateEmployeeSalaryAsync` with a
-`SalaryHistories` row, the project repository and report repository), the service
-implementations over them, the API controllers with exception-to-status-code middleware,
-and the Razor screens ported from `design-system/`.
+T16 onward adds the application features: the remaining repository methods
+(`UpdateEmployeeSalaryAsync` with a `SalaryHistories` row, the project repository and
+report repository), the service implementations over them, the API controllers with
+exception-to-status-code middleware, and the Razor screens ported from `design-system/`.

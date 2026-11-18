@@ -9,7 +9,7 @@ would bloat it lives here.
 | [getting-started.md](getting-started.md) | Prerequisites, `.env`, Docker Compose SQL Server, `db-init`, connection strings, dev URLs, reset and troubleshooting (including Apple Silicon). |
 | [architecture.md](architecture.md) | Project responsibilities, dependency direction, DI wiring, transaction and error-translation rules, and the UI/design-system contract. |
 | [database.md](database.md) | `EnterpriseHRDB` tables, constraints, indexes, `dbo.sp_GetDepartmentSummary`, seed fixtures, and the rules for `db/` scripts. |
-| [development-stages.md](development-stages.md) | The T01–T14 stage log: what each stage added and what is still pending. |
+| [development-stages.md](development-stages.md) | The T01–T15 stage log: what each stage added and what is still pending. |
 
 Related reference material that does not belong in `docs/`:
 

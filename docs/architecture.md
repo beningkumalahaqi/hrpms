@@ -116,8 +116,11 @@ where repositories register as scoped as they land. Both hosts call it from `Pro
 
 Current repositories: `LookupRepository` (department, position and employee option
 lists) and `EmployeeRepository` (paged reads with four-type multi-mapping, create,
-update). The remaining repository methods and all service implementations come with the
-application features — see [development-stages.md](development-stages.md).
+update, and soft delete). Deactivation never removes the row: `IsActive` becomes 0, and a
+transaction that holds the row under `UPDLOCK` refuses the change while an active employee
+still reports to this person, or while they hold an assignment on an `Active` project. The
+remaining repository methods and all service implementations come with the application
+features — see [development-stages.md](development-stages.md).
 
 ## Frontend and design system
 

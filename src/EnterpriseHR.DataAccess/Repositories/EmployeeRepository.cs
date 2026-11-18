@@ -142,6 +142,36 @@ public sealed partial class EmployeeRepository(IDbConnectionFactory factory)
         WHERE Id = @Id;
         """;
 
+    // UPDLOCK/ROWLOCK holds the row for the rest of the transaction, so a concurrent
+    // deactivation cannot pass the two guards below at the same time as this one.
+    private const string SelectEmployeeStateForDeleteSql = """
+        SELECT Id, IsActive
+        FROM dbo.Employees WITH (UPDLOCK, ROWLOCK)
+        WHERE Id = @Id;
+        """;
+
+    private const string CountActiveReportsSql = """
+        SELECT COUNT(*)
+        FROM dbo.Employees
+        WHERE ManagerId = @Id AND IsActive = 1;
+        """;
+
+    // Only an assignment on an Active project blocks deactivation; Planning, Completed and
+    // Cancelled projects do not.
+    private const string CountActiveProjectAssignmentsSql = """
+        SELECT COUNT(*)
+        FROM dbo.ProjectAssignments pa
+        INNER JOIN dbo.Projects p ON p.Id = pa.ProjectId
+        WHERE pa.EmployeeId = @Id AND p.Status = 'Active';
+        """;
+
+    // Soft delete only: employees are never removed from the table (A6).
+    private const string DeactivateEmployeeSql = """
+        UPDATE dbo.Employees
+        SET IsActive = 0
+        WHERE Id = @Id;
+        """;
+
     public async Task<PagedResult<EmployeeDto>> GetAllEmployeesAsync(
         EmployeeFilter filter,
         CancellationToken ct = default)
@@ -372,6 +402,54 @@ public sealed partial class EmployeeRepository(IDbConnectionFactory factory)
         }
     }
 
+    public async Task DeleteEmployeeAsync(int id, CancellationToken ct = default)
+    {
+        await ExecuteInTransactionAsync(
+            async (conn, tx) =>
+            {
+                // UPDLOCK holds this row until commit, so the two guards below and the update
+                // cannot be interleaved with a concurrent deactivation or re-hire.
+                var state = await conn.QuerySingleOrDefaultAsync<EmployeeState>(
+                    new CommandDefinition(SelectEmployeeStateForDeleteSql, new { id },
+                        transaction: tx, cancellationToken: ct));
+
+                if (state is null)
+                {
+                    throw new NotFoundException($"Employee {id} was not found.");
+                }
+
+                // A6: deactivating an already inactive employee succeeds without side effects.
+                if (!state.IsActive)
+                {
+                    return;
+                }
+
+                var activeReports = await conn.ExecuteScalarAsync<int>(
+                    new CommandDefinition(CountActiveReportsSql, new { id },
+                        transaction: tx, cancellationToken: ct));
+
+                if (activeReports > 0)
+                {
+                    throw new ConflictException(
+                        $"Cannot deactivate: employee manages {activeReports} active employee(s).");
+                }
+
+                var activeProjects = await conn.ExecuteScalarAsync<int>(
+                    new CommandDefinition(CountActiveProjectAssignmentsSql, new { id },
+                        transaction: tx, cancellationToken: ct));
+
+                if (activeProjects > 0)
+                {
+                    throw new ConflictException(
+                        $"Cannot deactivate: employee is still assigned to {activeProjects} active project(s).");
+                }
+
+                await conn.ExecuteAsync(new CommandDefinition(DeactivateEmployeeSql, new { id },
+                    transaction: tx, cancellationToken: ct));
+            },
+            ct);
+    }
+
     private static async Task<bool> DepartmentExistsAsync(
         DbConnection conn,
         int departmentId,
@@ -431,6 +509,14 @@ public sealed partial class EmployeeRepository(IDbConnectionFactory factory)
         public decimal MinSalary { get; set; }
 
         public decimal MaxSalary { get; set; }
+    }
+
+    /// <summary>Read under UPDLOCK by the delete path, so the row is held until commit.</summary>
+    private sealed class EmployeeState
+    {
+        public int Id { get; set; }
+
+        public bool IsActive { get; set; }
     }
 }
 
