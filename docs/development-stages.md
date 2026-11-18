@@ -31,7 +31,8 @@ the log of what each stage added. The authoritative "what is done" summary is th
 | T22 | Global API exception-handling middleware | done |
 | T23 | Employee API endpoints: list and salary change | done |
 | T24 | Project API endpoints: details and assignment | done |
-| T25+ | Remaining API endpoints and Razor screens | pending |
+| T25 | Report API endpoint: department summary | done |
+| T26+ | Remaining API endpoints and Razor screens | pending |
 
 ## T01–T04 — Infrastructure and database
 
@@ -362,7 +363,46 @@ E003 back at 30%.
 
 `/api/projects` itself stays a 404: only `{id}/details` and `{id}/assign` are routed.
 
+## T25 — Report endpoint
+
+`src/EnterpriseHR.Api/Controllers/ReportsController.cs` exposes `GET
+/api/reports/department-summary`, the endpoint the original practical exam asked for.
+
+The route is declared with an explicit `[Route("api/reports")]` plus
+`[HttpGet("department-summary")]` rather than inheriting `api/[controller]` from
+`ApiControllerBase`. The inherited template would give `/api/Reports`; routing matches that
+case-insensitively, so both work, but Swagger publishes exactly what the template says and the
+contract names the path in lowercase.
+
+The action awaits `IReportService.GetDepartmentSummaryAsync`, which delegates to
+`ReportRepository` and runs `dbo.sp_GetDepartmentSummary` through async Dapper with
+`commandType: CommandType.StoredProcedure`. There is no try/catch: a failure reaches
+`ExceptionHandlingMiddleware` and leaves as the generic 500 envelope. `data` is the array itself
+rather than an object wrapping it.
+
+Verified against the live database and against an independent recomputation that does not use
+the stored procedure (a correlated-subquery query over `Employees` and `Projects`); the four
+rows agree. Finance 3 employees / 48,000,000 payroll / 2,000,000 remaining / 1 active project;
+Human Resources 2 / 38,000,000 / 22,000,000 / 0; IT 4 / 77,000,000 / -7,000,000 / 2 with
+`isOverBudget: true`; Operations 0 / 0 / 20,000,000 / 0. Values were checked field by field
+against the SQL output rather than eyeballed.
+
+The procedure really executes: `sys.dm_exec_procedure_stats` counted 15 executions before the
+first request, 16 after one and 17 after two. The call is async end to end — no `.Result`,
+`.Wait()`, `GetAwaiter().GetResult()` or synchronous Dapper call exists in the controller,
+service or repository — and 20 concurrent requests completed in 445 ms wall clock against 6.2 s
+of summed individual latency, which a blocking implementation could not achieve. Route edges:
+`/api/reports` is a 404 envelope, a trailing slash and different casing both return 200, `POST`
+on the path is the 405 envelope, and `/api/report/...` (singular) is a 404.
+
+The failure path was exercised by temporarily replacing the procedure body with `SELECT 1/0`:
+the endpoint returned the generic 500 envelope with zero occurrences of the SQL error text, the
+procedure name or a stack trace, while the log held the full `SqlException`. The procedure was
+then restored from `db/02_sp_GetDepartmentSummary.sql` and its `sys.sql_modules` definition hash
+matched the pre-change hash exactly (`0xFE25CF50...`, 1186 characters). The endpoint is
+read-only, so the seed snapshot stayed `4|10|9|6|7|0`.
+
 ## Next
 
-T25 onward adds the remaining controllers — employee create/read/update/delete, the project
-list, and reports — and then the Razor screens ported from `design-system/`.
+T26 onward adds the remaining controllers — employee create/read/update/delete, and the project
+list — and then the Razor screens ported from `design-system/`.

@@ -199,6 +199,7 @@ every `/api/**` path not listed here is a 404 envelope.
 | `PATCH /api/employees/{id:int}/salary` | `EmployeeDto` | Body `UpdateSalaryRequest`: `newSalary`, `newPositionId`, `reason`. Success `message` is `"Salary updated."`. |
 | `GET /api/projects/{id:int}/details` | `ProjectDetailDto` | The project plus its `members` array. A former employee stays listed, with `isEmployeeActive: false`. |
 | `POST /api/projects/{id:int}/assign` | `{ assignmentId, projectId, employeeId, allocationPercentage }` | Body `AssignEmployeeRequest`: `employeeId`, `roleInProject`, `allocationPercentage`. 201 with a `Location` header pointing at that project's details. |
+| `GET /api/reports/department-summary` | `DepartmentSummaryDto[]` | One row per department from `dbo.sp_GetDepartmentSummary`, ordered by department name. `remainingBudget` goes negative when payroll exceeds budget; `isOverBudget` is the same fact as a boolean. |
 
 `GET /api/employees` is hard-wired to active employees: the controller builds its own
 `EmployeeFilter` with `IsActive = true` instead of forwarding the bound one, so a client-sent
@@ -228,6 +229,16 @@ from the id the insert returned plus the values just persisted, so no read-back 
 `projectId` comes from the route, since the body deliberately carries none.
 `CreatedAssignmentDto` is nested inside `ProjectsController` because it is the response shape of
 that one endpoint and nothing else reads it.
+
+`GET /api/reports/department-summary` is the only route declared with an explicit
+`[Route("api/reports")]`. The inherited `api/[controller]` template would give `/api/Reports`,
+which routing matches case-insensitively anyway, but the report contract names the path in
+lowercase and Swagger publishes whatever the template says — so the literal keeps the document
+honest rather than relying on case-insensitive matching. `[HttpGet("department-summary")]` fixes
+the action segment. The action awaits `GetDepartmentSummaryAsync`, which runs
+`dbo.sp_GetDepartmentSummary` through async Dapper with
+`commandType: CommandType.StoredProcedure`, so the aggregation is one server-side round trip.
+`data` is the array itself, not a wrapper object.
 
 The XML summaries and the `[ProducesResponseType]` attributes on these actions feed Swagger, but
 the XML half only reaches the document once `GenerateDocumentationFile` is enabled on the Api
