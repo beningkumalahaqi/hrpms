@@ -85,13 +85,16 @@ steps, and the Apple Silicon caveats — is in
 | T23 | Employee endpoints: paged list and salary change | done |
 | T24 | Project endpoints: details and employee assignment | done |
 | T25 | Report endpoint: department summary | done |
-| T26+ | Remaining API endpoints and Razor screens | pending |
+| T26 | API request collection and scenario matrix | done |
+| T27+ | Remaining API endpoints and Razor screens | pending |
 
 The database, domain layer, data-access foundation, services and the API infrastructure
 (envelope, validation mapping, exception mapping, Swagger) are complete, and MVC plus the API
 now serve from one process. The employee, project and report endpoints are live; what is still
 missing: the employee write endpoints, the project list, and the Razor screens ported from the
-design system.
+design system. The API can be exercised end to end with
+[`src/EnterpriseHR.Api/requests.http`](src/EnterpriseHR.Api/requests.http), whose scenarios are
+tabulated in [docs/TEST-SCENARIO-API.md](docs/TEST-SCENARIO-API.md).
 Stage-by-stage detail is in [docs/development-stages.md](docs/development-stages.md).
 
 Out of scope unless separately requested: authentication and authorization, EF Core or any
@@ -105,7 +108,8 @@ migration tool, test projects, CI pipelines, and containerization of the .NET ap
 | [docs/getting-started.md](docs/getting-started.md) | Prerequisites, local setup, configuration, running the application, troubleshooting. |
 | [docs/architecture.md](docs/architecture.md) | Projects, layer responsibilities, data-access rules, design-system contract, scope. |
 | [docs/database.md](docs/database.md) | Schema, constraints, stored procedure, seed fixtures. |
-| [docs/development-stages.md](docs/development-stages.md) | T01–T25 stage log and what comes next. |
+| [docs/TEST-SCENARIO-API.md](docs/TEST-SCENARIO-API.md) | API scenario matrix, paired with the runnable `src/EnterpriseHR.Api/requests.http`. |
+| [docs/development-stages.md](docs/development-stages.md) | T01–T26 stage log and what comes next. |
 | [db/README.md](db/README.md) | Rules for the numbered SQL init scripts. |
 | [AGENTS.md](AGENTS.md) | Working rules for coding agents, including where each kind of knowledge belongs. |
 

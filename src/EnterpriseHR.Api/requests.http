@@ -1,0 +1,670 @@
+# EnterpriseHRSystem - API request collection
+#
+# Start the only host first (it serves MVC, /api/** and Swagger on one origin):
+#
+#   dotnet run --project src/EnterpriseHR.WebApp
+#
+# Contract:        docs/architecture.md  -> "API conventions"
+# Scenario matrix: docs/TEST-SCENARIO-API.md
+#
+# Every response, success or failure, uses one envelope:
+#
+#   { "success": bool, "message": string, "data": object|null }
+#
+#   200 read/update   201 created (+ Location header)   400 validation or business rule
+#   404 not found     409 conflict                      500 generic, no internals
+#
+# Each request is preceded by "# -> <status> <what to assert>". The expectations are
+# measured against the seed fixture in db/03_seed.sql, not guessed.
+#
+# --- Deterministic seed ids -------------------------------------------------------
+#
+# The seed inserts in a fixed order, so these ids are stable across `docker compose
+# down -v` + `db-init`. They are declared once here instead of being scattered through
+# the requests. Ids do NOT follow EmployeeNumber order.
+#
+#   E004 = employee 6   Dewi Lestari, Senior Developer (position 2), 12,000,000/month,
+#                       band 12,000,000-25,000,000. Target of every salary write.
+#   E005 = employee 7   Rudi Hartono, IsActive = 0. Every write against it must fail.
+#   E001 = employee 1   Budi Santoso, no project allocation. Target of the create case.
+#   E003 = employee 5   Andi Wijaya, 30% allocated (PRJ-001).
+#   E002 = employee 4   Siti Rahma, 100% allocated (PRJ-001 60% + PRJ-002 40%).
+#   PRJ-001 = project 1 Active    PRJ-003 = project 3 Planning   PRJ-006 = project 6 Active
+#   PRJ-004 = project 4 Completed PRJ-005 = project 5 Cancelled
+#
+# There is no project list endpoint yet, so project ids cannot be looked up over HTTP;
+# `GET /api/projects/{{prjNNN}}/details` per seed id is the closest thing to a lookup.
+# Employee ids can be resolved over HTTP - see the "Resolve seed ids" group below.
+
+@host = http://localhost:5100
+
+@e001 = 1
+@e002 = 4
+@e003 = 5
+@e004 = 6
+@e005 = 7
+
+@prj001 = 1
+@prj003 = 3
+@prj004 = 4
+@prj005 = 5
+@prj006 = 6
+
+###
+### Run order and clean-up
+###
+# The two write groups are closed cycles, so running this file top to bottom is safe:
+#
+#   salary     12,000,000/pos2 -> 13,000,000/pos2 -> 30,000,000/pos3 -> 12,000,000/pos2
+#   assignment create          201, one row (E001 on PRJ-006 at 40%)
+#
+# The assignment row cannot be removed over HTTP (no delete endpoint), and a second
+# full run would turn that 201 into a 409. Between runs, drop the rows the file wrote:
+#
+#   DELETE FROM dbo.ProjectAssignments WHERE ProjectId = 6 AND EmployeeId = 1;
+#   DELETE FROM dbo.SalaryHistories WHERE EmployeeId = 6;
+#   UPDATE dbo.Employees SET Salary = 12000000.00, PositionId = 2 WHERE Id = 6;
+#
+# (The salary cycle restores itself; the statements above just clear the audit rows.)
+
+###
+### Resolve seed ids over HTTP
+###
+
+# -> 200 one item, employeeNumber "E004"; data.items[0].id is {{e004}}
+GET {{host}}/api/employees?search=E004
+Accept: application/json
+
+###
+
+# -> 200 two items, E007 and E006 (department 2 = HR)
+GET {{host}}/api/employees?departmentId=2
+Accept: application/json
+
+###
+### Employees - paged list (GET /api/employees)
+###
+
+# -> 200 active employees only, 9 of them; page 1, pageSize 10, totalCount 9, totalPages 1
+GET {{host}}/api/employees
+Accept: application/json
+
+###
+
+# -> 200 items 2, totalCount 4, totalPages 2 (IT department)
+GET {{host}}/api/employees?departmentId=1&page=1&pageSize=2
+Accept: application/json
+
+###
+
+# -> 200 one item, E004; search matches FullName, EmployeeNumber and Email (case-insensitive)
+GET {{host}}/api/employees?search=dewi
+Accept: application/json
+
+###
+
+# -> 200 items 4, page 2, totalPages 3
+GET {{host}}/api/employees?page=2&pageSize=4
+Accept: application/json
+
+###
+
+# -> 200 items [] with the real totalCount 9: a page past the end is empty, not an error
+GET {{host}}/api/employees?page=99
+Accept: application/json
+
+###
+
+# -> 200 still 9 of 9, all active: isActive is accepted by the filter but ignored by design,
+#          so a client cannot widen this endpoint to soft-deleted staff
+GET {{host}}/api/employees?isActive=false&pageSize=100
+Accept: application/json
+
+###
+
+# -> 200 items [], totalCount 0: an unknown department is an empty page, not a 404
+GET {{host}}/api/employees?departmentId=999
+Accept: application/json
+
+###
+
+# -> 200 items [], totalCount 0: LIKE wildcards are escaped, so "%" is a literal search term
+GET {{host}}/api/employees?search=%25
+Accept: application/json
+
+###
+### Employees - list validation failures (all 400, field-error data)
+###
+
+# -> 400 data.pageSize: pageSize max is 100
+GET {{host}}/api/employees?pageSize=101
+Accept: application/json
+
+###
+
+# -> 400 data.pageSize: pageSize min is 1 (no silent clamp)
+GET {{host}}/api/employees?pageSize=0
+Accept: application/json
+
+###
+
+# -> 400 data.page: page min is 1
+GET {{host}}/api/employees?page=0
+Accept: application/json
+
+###
+
+# -> 400 data.pageSize: not an integer, model binding failure
+GET {{host}}/api/employees?pageSize=abc
+Accept: application/json
+
+###
+
+# -> 400 data.search: 256 characters, StringLength(255)
+GET {{host}}/api/employees?search=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+Accept: application/json
+
+###
+### Employee salary adjustment (PATCH /api/employees/{id}/salary)
+###
+# Closed cycle; every rejected request below writes nothing (no SalaryHistories row and
+# no Salary change). E004 sits at the floor of the Senior Developer band, so 11,999,999
+# is a 400 while the same figure would be legal for a Junior Developer.
+
+# -> 200 message "Salary updated.", data.salary 13000000, positionId 2, positionTitle
+#         "Senior Developer"; also writes SalaryHistories (12,000,000 -> 13,000,000)
+PATCH {{host}}/api/employees/{{e004}}/salary
+Content-Type: application/json
+Accept: application/json
+
+{
+  "newSalary": 13000000,
+  "reason": "annual review"
+}
+
+###
+
+# -> 400 message "Nothing to change.", data null; same salary and same position
+PATCH {{host}}/api/employees/{{e004}}/salary
+Content-Type: application/json
+Accept: application/json
+
+{
+  "newSalary": 13000000,
+  "newPositionId": 2,
+  "reason": "annual review"
+}
+
+###
+
+# -> 400 message "New salary ... is outside the allowed range ... for position
+#         'Senior Developer'."; below the band floor of 12,000,000
+PATCH {{host}}/api/employees/{{e004}}/salary
+Content-Type: application/json
+Accept: application/json
+
+{
+  "newSalary": 11999999,
+  "reason": "annual review"
+}
+
+###
+
+# -> 400 same rule above the band ceiling of 25,000,000
+PATCH {{host}}/api/employees/{{e004}}/salary
+Content-Type: application/json
+Accept: application/json
+
+{
+  "newSalary": 26000000,
+  "reason": "annual review"
+}
+
+###
+
+# -> 400 message "Target position not found."; checked before the band, so no write
+PATCH {{host}}/api/employees/{{e004}}/salary
+Content-Type: application/json
+Accept: application/json
+
+{
+  "newSalary": 30000000,
+  "newPositionId": 999,
+  "reason": "annual review"
+}
+
+###
+
+# -> 400 outside the Engineering Manager band (25,000,000-40,000,000): a position change
+#         must also fit the new position's range
+PATCH {{host}}/api/employees/{{e004}}/salary
+Content-Type: application/json
+Accept: application/json
+
+{
+  "newSalary": 13000000,
+  "newPositionId": 3,
+  "reason": "lateral move"
+}
+
+###
+
+# -> 200 promotion: data.salary 30000000, positionId 3, positionTitle "Engineering Manager"
+PATCH {{host}}/api/employees/{{e004}}/salary
+Content-Type: application/json
+Accept: application/json
+
+{
+  "newSalary": 30000000,
+  "newPositionId": 3,
+  "reason": "promotion"
+}
+
+###
+
+# -> 200 restore: salary 12000000, positionId 2 again; closes the cycle for the next run
+PATCH {{host}}/api/employees/{{e004}}/salary
+Content-Type: application/json
+Accept: application/json
+
+{
+  "newSalary": 12000000,
+  "newPositionId": 2,
+  "reason": "restore seed fixture"
+}
+
+###
+
+# -> 400 message "Cannot adjust the salary of an inactive employee." (E005, IsActive = 0)
+PATCH {{host}}/api/employees/{{e005}}/salary
+Content-Type: application/json
+Accept: application/json
+
+{
+  "newSalary": 8000000,
+  "reason": "annual review"
+}
+
+###
+
+# -> 404 message "Employee 999 was not found.", data null
+PATCH {{host}}/api/employees/999/salary
+Content-Type: application/json
+Accept: application/json
+
+{
+  "newSalary": 13000000,
+  "reason": "annual review"
+}
+
+###
+
+# -> 404 message "Employee 0 was not found."; 0 matches {id:int}, unlike a non-numeric id
+PATCH {{host}}/api/employees/0/salary
+Content-Type: application/json
+Accept: application/json
+
+{
+  "newSalary": 13000000,
+  "reason": "annual review"
+}
+
+###
+
+# -> 404 envelope "The requested resource was not found."; "abc" never matches {id:int}
+PATCH {{host}}/api/employees/abc/salary
+Content-Type: application/json
+Accept: application/json
+
+{
+  "newSalary": 13000000,
+  "reason": "annual review"
+}
+
+###
+### Employee salary - validation and transport failures
+###
+
+# -> 400 data.reason "The Reason field is required."; model binding, no business rule ran
+PATCH {{host}}/api/employees/{{e004}}/salary
+Content-Type: application/json
+Accept: application/json
+
+{
+  "newSalary": 13000000
+}
+
+###
+
+# -> 400 data.newSalary: below the decimal floor of the Range attribute
+PATCH {{host}}/api/employees/{{e004}}/salary
+Content-Type: application/json
+Accept: application/json
+
+{
+  "newSalary": 0,
+  "reason": "annual review"
+}
+
+###
+
+# -> 400 both fields at once: data.reason and data.newSalary
+PATCH {{host}}/api/employees/{{e004}}/salary
+Content-Type: application/json
+Accept: application/json
+
+{
+}
+
+###
+
+# -> 400 data carries the JSON parser path ("$") and a "request" key, not a domain message
+PATCH {{host}}/api/employees/{{e004}}/salary
+Content-Type: application/json
+Accept: application/json
+
+{
+  "newSalary": 13000000,
+
+###
+
+# -> 415 from MVC itself, not the envelope: Content-Type must be application/json
+PATCH {{host}}/api/employees/{{e004}}/salary
+Content-Type: text/plain
+
+newSalary=13000000
+
+###
+### Project details (GET /api/projects/{id}/details)
+###
+
+# -> 200 PRJ-001, Active, members 2, totalAllocationOfMembers 90
+GET {{host}}/api/projects/{{prj001}}/details
+Accept: application/json
+
+###
+
+# -> 200 PRJ-003, Planning, one member
+GET {{host}}/api/projects/{{prj003}}/details
+Accept: application/json
+
+###
+
+# -> 200 PRJ-004, Completed; a project outside Active/Planning still reads fine
+GET {{host}}/api/projects/{{prj004}}/details
+Accept: application/json
+
+###
+
+# -> 404 message "Project not found." (a thrown NotFoundException, not a bare NotFound())
+GET {{host}}/api/projects/999/details
+Accept: application/json
+
+###
+
+# -> 404 envelope "The requested resource was not found."; route constraint did not match
+GET {{host}}/api/projects/abc/details
+Accept: application/json
+
+###
+### Project assignment - rejected requests (none of these write a row)
+###
+
+# -> 409 message "Employee is already assigned to this project."
+#         E002 is on PRJ-001 as Tech Lead (60%)
+POST {{host}}/api/projects/{{prj001}}/assign
+Content-Type: application/json
+Accept: application/json
+
+{
+  "employeeId": 4,
+  "roleInProject": "Developer",
+  "allocationPercentage": 10
+}
+
+###
+
+# -> 409 message "Allocation would reach 110% (current 100% + requested 10%). Maximum is
+#         100%." E002 already holds 60% + 40% across two projects
+POST {{host}}/api/projects/{{prj003}}/assign
+Content-Type: application/json
+Accept: application/json
+
+{
+  "employeeId": 4,
+  "roleInProject": "Developer",
+  "allocationPercentage": 10
+}
+
+###
+
+# -> 400 message "Employee is not active." (E005)
+POST {{host}}/api/projects/{{prj001}}/assign
+Content-Type: application/json
+Accept: application/json
+
+{
+  "employeeId": 7,
+  "roleInProject": "Developer",
+  "allocationPercentage": 10
+}
+
+###
+
+# -> 400 message "Project status 'Completed' does not accept new assignments."
+POST {{host}}/api/projects/{{prj004}}/assign
+Content-Type: application/json
+Accept: application/json
+
+{
+  "employeeId": 1,
+  "roleInProject": "Developer",
+  "allocationPercentage": 10
+}
+
+###
+
+# -> 400 message "Project status 'Cancelled' does not accept new assignments."
+POST {{host}}/api/projects/{{prj005}}/assign
+Content-Type: application/json
+Accept: application/json
+
+{
+  "employeeId": 1,
+  "roleInProject": "Developer",
+  "allocationPercentage": 10
+}
+
+###
+
+# -> 404 message "Project 999 was not found."
+POST {{host}}/api/projects/999/assign
+Content-Type: application/json
+Accept: application/json
+
+{
+  "employeeId": 1,
+  "roleInProject": "Developer",
+  "allocationPercentage": 10
+}
+
+###
+
+# -> 404 message "Employee 999 was not found."
+POST {{host}}/api/projects/{{prj001}}/assign
+Content-Type: application/json
+Accept: application/json
+
+{
+  "employeeId": 999,
+  "roleInProject": "Developer",
+  "allocationPercentage": 10
+}
+
+###
+
+# -> 400 data.allocationPercentage: Range(1, 100)
+POST {{host}}/api/projects/{{prj001}}/assign
+Content-Type: application/json
+Accept: application/json
+
+{
+  "employeeId": 1,
+  "roleInProject": "Developer",
+  "allocationPercentage": 0
+}
+
+###
+
+# -> 400 data.allocationPercentage: above the cap
+POST {{host}}/api/projects/{{prj001}}/assign
+Content-Type: application/json
+Accept: application/json
+
+{
+  "employeeId": 1,
+  "roleInProject": "Developer",
+  "allocationPercentage": 101
+}
+
+###
+
+# -> 400 data.roleInProject "The RoleInProject field is required."
+POST {{host}}/api/projects/{{prj001}}/assign
+Content-Type: application/json
+Accept: application/json
+
+{
+  "employeeId": 1,
+  "allocationPercentage": 10
+}
+
+###
+
+# -> 400 data.employeeId and data.roleInProject: an empty body fails both required checks
+POST {{host}}/api/projects/{{prj001}}/assign
+Content-Type: application/json
+Accept: application/json
+
+{
+}
+
+###
+
+# -> 400 data carries the JSON parser path ("$.employeeId") and a "request" key
+POST {{host}}/api/projects/{{prj001}}/assign
+Content-Type: application/json
+Accept: application/json
+
+{
+  "employeeId":
+
+###
+### Project assignment - create (the only request in this file that adds a row)
+###
+# E001 carries no allocation yet, so 40% is within the cap. Expect a Location header of
+# .../api/Projects/6/details (CreatedAtAction keeps the controller's template casing).
+
+# -> 201 message "Created.", data { assignmentId, projectId 6, employeeId 1,
+#         allocationPercentage 40 }, Location .../api/Projects/{{prj006}}/details
+POST {{host}}/api/projects/{{prj006}}/assign
+Content-Type: application/json
+Accept: application/json
+
+{
+  "employeeId": 1,
+  "roleInProject": "Architect",
+  "allocationPercentage": 40
+}
+
+###
+
+# -> 200 PRJ-006 with the new member listed; totalAllocationOfMembers is now 80
+GET {{host}}/api/projects/{{prj006}}/details
+Accept: application/json
+
+###
+### Department summary report (GET /api/reports/department-summary)
+###
+
+# -> 200 four rows ordered by department name: FIN, HR, IT, OPS.
+#         IT: activeEmployeeCount 4, totalMonthlySalary 77000000, remainingBudget
+#         -7000000, isOverBudget true. OPS: 0, 0, 20000000, false.
+GET {{host}}/api/reports/department-summary
+Accept: application/json
+
+###
+
+# -> 200 same payload: routing is case-insensitive, the lowercase template only shapes Swagger
+GET {{host}}/api/Reports/Department-Summary
+Accept: application/json
+
+###
+
+# -> 200 same payload: a trailing slash is tolerated
+GET {{host}}/api/reports/department-summary/
+Accept: application/json
+
+###
+
+# -> 404 envelope: the controller route has no action at the bare segment
+GET {{host}}/api/reports
+Accept: application/json
+
+###
+### Routing and method edges (middleware-level, not controller-level)
+###
+
+# -> 404 envelope "The requested resource was not found."
+GET {{host}}/api/nope
+Accept: application/json
+
+###
+
+# -> 404 envelope: there is no GET /api/employees/{id} yet
+GET {{host}}/api/employees/1
+Accept: application/json
+
+###
+
+# -> 405 envelope "The HTTP method is not supported for this resource."
+DELETE {{host}}/api/employees
+Accept: application/json
+
+###
+
+# -> 405 envelope: the report endpoint is read-only
+POST {{host}}/api/reports/department-summary
+Accept: application/json
+
+###
+
+# -> 405 envelope: the assignment endpoint is POST-only
+GET {{host}}/api/projects/{{prj001}}/assign
+Accept: application/json
+
+###
+
+# -> 405 envelope: salary is PATCH-only
+PUT {{host}}/api/employees/{{e004}}/salary
+Content-Type: application/json
+Accept: application/json
+
+{
+  "newSalary": 13000000,
+  "reason": "annual review"
+}
+
+###
+### API documentation (not part of the /api contract)
+###
+
+# -> 200 Swagger UI (Development only; 404 in Production)
+GET {{host}}/swagger/index.html
+Accept: text/html
+
+###
+
+# -> 200 OpenAPI document: five paths, one per implemented endpoint
+GET {{host}}/swagger/v1/swagger.json
+Accept: application/json

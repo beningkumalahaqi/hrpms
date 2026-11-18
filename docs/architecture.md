@@ -244,6 +244,19 @@ The XML summaries and the `[ProducesResponseType]` attributes on these actions f
 the XML half only reaches the document once `GenerateDocumentationFile` is enabled on the Api
 project — today `IncludeXmlComments` finds no file and the descriptions stay empty.
 
+### Exercising the API
+
+`src/EnterpriseHR.Api/requests.http` is the runnable counterpart of this section: 63 requests
+for every route above, each preceded by a `# -> <status>` comment stating what to assert, with
+`@host` declared once and the deterministic seed ids aliased rather than hard-coded inline. The
+same matrix is written out as tables in [TEST-SCENARIO-API.md](TEST-SCENARIO-API.md), including
+the seed fixture the expectations depend on.
+
+Two groups write rows. The salary group is a closed cycle that ends where it started; the
+assignment group adds one row that no endpoint can delete, so the file documents the clean-up
+SQL at the top and is safe to run twice in a row after it. A full run must leave
+`SalaryHistories` holding one row per accepted adjustment and nothing from the rejected ones.
+
 ### Exception handling
 
 `ExceptionHandlingMiddleware` in `src/EnterpriseHR.Api/Middleware/` is the single place API

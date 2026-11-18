@@ -32,7 +32,8 @@ the log of what each stage added. The authoritative "what is done" summary is th
 | T23 | Employee API endpoints: list and salary change | done |
 | T24 | Project API endpoints: details and assignment | done |
 | T25 | Report API endpoint: department summary | done |
-| T26+ | Remaining API endpoints and Razor screens | pending |
+| T26 | API request collection and scenario matrix | done |
+| T27+ | Remaining API endpoints and Razor screens | pending |
 
 ## T01–T04 — Infrastructure and database
 
@@ -402,7 +403,42 @@ then restored from `db/02_sp_GetDepartmentSummary.sql` and its `sys.sql_modules`
 matched the pre-change hash exactly (`0xFE25CF50...`, 1186 characters). The endpoint is
 read-only, so the seed snapshot stayed `4|10|9|6|7|0`.
 
+## T26 — API request collection and scenario matrix
+
+T26 adds no application code. It adds the two documents that make the API testable by hand:
+`src/EnterpriseHR.Api/requests.http` (63 runnable requests with a `# -> <status>` comment above
+each) and `docs/TEST-SCENARIO-API.md` (the same scenarios as a table, plus the seed fixture
+they assume).
+
+The collections are grouped by endpoint — resolve ids, employee list, employee list
+validation, salary adjustment, salary validation/transport, project details, assignment
+rejections, assignment create, department report, routing and method edges, Swagger — so a
+reviewer can run one group or the whole file. `@host = http://localhost:5100` is declared once;
+`@e001`-`@e005` and `@prj001`-`@prj006` alias the deterministic seed ids so no request carries a
+bare magic number. Employee ids are additionally resolvable over HTTP
+(`GET /api/employees?search=E004` returns id 6), which is called out rather than assumed.
+
+The expectations are measured. A script executed all 63 requests against the running host and
+compared each status with its own comment: 63 passed, 0 failed, and every enveloped body was
+checked for `success` matching its status class. The single non-enveloped response is the
+documented one: `Content-Type: text/plain` on the salary PATCH is a bare 415 produced by MVC
+before any application code runs.
+
+Re-runnability was proved rather than claimed. Two write groups exist: the salary group is a
+closed cycle (12,000,000 -> 13,000,000 -> 30,000,000/promotion -> 12,000,000), and the
+assignment group adds one row that no endpoint can delete. After a full run the database held
+exactly the three accepted salary-history rows and one new assignment; applying the clean-up
+block documented at the top of the file and running everything again gave another 63/63.
+`SalaryHistories` never held a row from any of the eleven rejected salary requests, which is the
+proof that the guard clauses run before either statement.
+
+The scenario matrix also records what the API does **not** have: there is no
+`GET /api/projects` list yet, so project ids can only come from the seed and
+`GET /api/projects/{id}/details` is the closest thing to a lookup. That gap is stated in the doc
+instead of being worked around.
+
 ## Next
 
-T26 onward adds the remaining controllers — employee create/read/update/delete, and the project
-list — and then the Razor screens ported from `design-system/`.
+T27 onward adds the remaining controllers — employee create/read/update/delete, and the project
+list — and then the Razor screens ported from `design-system/`. Each new endpoint should get a
+group in `requests.http` and a section in `docs/TEST-SCENARIO-API.md`.
