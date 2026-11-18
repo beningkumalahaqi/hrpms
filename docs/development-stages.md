@@ -594,9 +594,54 @@ only `Index`, so the Employees item lost its active state on the new sub-screens
 now matches by controller, which keeps Home active on `/` only. `requests.http` still
 passes 63/63 and the seed snapshot was restored to `4|10|9|6|7|0`.
 
+## T30 — Deactivate and salary adjustment
+
+T30 adds the two employee actions that are deliberately absent from the edit form. Deactivation
+is a soft delete and salary/position changes are audited, so both get their own screen instead of
+a row button that writes on click.
+
+`GET /Employees/Delete/{id}` renders a confirmation card from the stored row: number, name,
+department, position and manager, with the `Sensitive action` eyebrow and an Active badge from
+the design system. The card states what deactivation keeps (the record and its project history)
+and what blocks it. `POST /Employees/Delete/{id}` calls `DeactivateAsync`. A `ConflictException`
+becomes `TempData["Error"]` with the repository's own sentence — "manages 3 active employee(s)",
+"still assigned to 1 active project(s)" — and the redirect returns to the directory; success sets
+`TempData["Success"]`. An already-inactive record is sent back with a warning instead of being
+posted, because the repository treats that call as a successful no-op and reporting success would
+imply something changed.
+
+`GET /Employees/AdjustSalary/{id}` shows the current position and salary as read-only values and
+three inputs: a position select preselected to the stored position, the new monthly salary, and
+the reason. `POST` sends `NewPositionId = selected != current ? selected : null`, so an unchanged
+selection stays a plain raise and only a different one is a promotion. A `BusinessRuleException`
+(range, inactive employee, unknown position, no-op) is caught into `ModelState` and the page is
+re-rendered with the submitted values; success sets `TempData["Success"]` naming the resulting
+title and amount and redirects to the directory.
+
+The audit trail is not bypassable from the edit form: a POST to `Edit` carrying `Salary`,
+`PositionId` or `EmployeeNumber` was ignored — `UpdateEmployeeRequest` has no such members, so
+model binding drops them — and no `SalaryHistories` row was written. Measured end to end against
+SQL Server: E009 deactivated (`IsActive = 0`, row and salary intact); E001 answered "Cannot
+deactivate: employee manages 3 active employee(s)." and E010 "Cannot deactivate: employee is
+still assigned to 1 active project(s).", with both rows byte-identical afterwards and 0 history
+rows; E002 raised 22m → 23.5m in the same position and E004 promoted 13m → 30m to Engineering
+Manager, each writing exactly one history row and the promotion carrying the previous salary
+forward; 5m against the Accountant band re-rendered with the en-dash range message and wrote
+nothing; inactive E005, a no-op repeat and position 999999 each produced their own message with
+no write. `Delete` and `AdjustSalary` on an unknown id answer 404 on GET and POST, and a POST
+without the antiforgery token answers 400.
+
+Two CSS additions were needed because the export has no equivalent: `.field textarea` (the design
+system styles `input` and `select` only, while the reason is required), and a bottom margin on the
+page-level `.error-summary`, which the export draws flush against whatever follows it. The
+directory's Salary and Deactivate row actions changed from a `Salary` route that did not exist and
+a POST form for a missing action into links to `AdjustSalary` and `Delete`; the inactive rows in
+the same table still show only Edit and Salary. Both screens were checked in Chromium at 360 and
+1440 with no horizontal overflow, and `requests.http` still passes 63/63 with the seed restored
+to `4|10|9|6|7|0`.
+
 ## Next
 
-T30 onward adds the salary adjustment and deactivation screens, then the project list and detail
-screens. Each new screen starts from the existing shell, `.page`, `.panel`, `.data-table`,
-`.field` and now `.form-grid`; each new API endpoint gets a group in `requests.http` and a section
-in `docs/TEST-SCENARIO-API.md`.
+T31 onward adds the project list and detail screens, then the dashboard. Each new screen starts
+from the existing shell, `.page`, `.panel`, `.data-table`, `.field` and `.form-grid`; each new API
+endpoint gets a group in `requests.http` and a section in `docs/TEST-SCENARIO-API.md`.

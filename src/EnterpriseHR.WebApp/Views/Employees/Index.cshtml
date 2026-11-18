@@ -159,14 +159,14 @@
                                 <td>
                                     <div class="button-row">
                                         <a class="button text" asp-action="Edit" asp-route-id="@employee.Id">Edit</a>
-                                        <a class="button text" asp-action="Salary" asp-route-id="@employee.Id">Salary</a>
+                                        @* A3: salary and position change through the audited page, so
+                                           the row links to it instead of posting a new amount. *@
+                                        <a class="button text" asp-action="AdjustSalary" asp-route-id="@employee.Id">Salary</a>
                                         @if (employee.IsActive)
                                         {
-                                            @* A state change, so it is a POST with the tag helper's
-                                               antiforgery token rather than a link. *@
-                                            <form method="post" asp-action="Deactivate" asp-route-id="@employee.Id">
-                                                <button class="button text danger-text" type="submit">Deactivate</button>
-                                            </form>
+                                            @* A state change, so it is a link to the confirmation card
+                                               and the card's form does the POST. *@
+                                            <a class="button text danger-text" asp-action="Delete" asp-route-id="@employee.Id">Deactivate</a>
                                         }
                                     </div>
                                 </td>
@@ -223,12 +223,10 @@
                         </dl>
                         <div class="record-actions">
                             <a class="button secondary" asp-action="Edit" asp-route-id="@employee.Id">Edit</a>
-                            <a class="button secondary" asp-action="Salary" asp-route-id="@employee.Id">Salary</a>
+                            <a class="button secondary" asp-action="AdjustSalary" asp-route-id="@employee.Id">Salary</a>
                             @if (employee.IsActive)
                             {
-                                <form method="post" asp-action="Deactivate" asp-route-id="@employee.Id">
-                                    <button class="button secondary danger-text" type="submit">Deactivate</button>
-                                </form>
+                                <a class="button secondary danger-text" asp-action="Delete" asp-route-id="@employee.Id">Deactivate</a>
                             }
                         </div>
                     </article>

@@ -333,6 +333,8 @@ Porting rules for the MVC screens:
 | `Views/Employees/Index.cshtml` | The employee directory: GET filter panel (search, department, include-inactive, Search/Reset), `.data-table` above 1024px, record cards below, pager in the panel footer. The Search/Reset row and `.checkbox-field` are the only additions, and they extend `.filter-panel` and `.field` from the export's tokens. |
 | `Views/Employees/Create.cshtml` | The create form: `.panel` + `.form-grid` + `.field`, the three `asp-items` selects with a `-- Select --` / `-- No manager --` placeholder, ModelOnly summary, per-field `asp-validation-for`, and `_ValidationScriptsPartial`. |
 | `Views/Employees/Edit.cshtml` | The edit form: only the `UpdateEmployeeRequest` fields are controls; the number, position and salary are read-only text and the salary page is linked from the grid. Same validation wiring as Create. |
+| `Views/Employees/Delete.cshtml` | The deactivation confirmation page, rendered from `EmployeeDto`: `Sensitive action` eyebrow, Active badge, a `.record-details` card of number/department/position/manager, and a POST form with `Keep active` / `Deactivate employee`. The export draws this as a `<dialog>`; T30 asks for a page, so the dialog's copy moved to `.panel`. |
+| `Views/Employees/AdjustSalary.cshtml` | The salary and promotion page: current position and salary as read-only `.record-details`, then a position select preselected to the current one, the new monthly salary in an `.input-prefix`, and a required reason `textarea`. `.field textarea`, `.form-divider` and the page-level `.error-summary` margin are the T30 additions. |
 | `Views/Shared/Error.cshtml` | The design-system error state for `HomeController.Error`, reached by `UseExceptionHandler` and by status-code re-execution; the action puts the original status back on the response. |
 
 Bootstrap is not referenced by the layout. `wwwroot/lib/bootstrap` and the template
@@ -340,6 +342,12 @@ Bootstrap is not referenced by the layout. `wwwroot/lib/bootstrap` and the templ
 Employees screens exist, so the Projects and Dashboard nav links answer the branded 404 until
 their stages land. New screens start from `.page`, `.page-header`, `.panel`, `.data-table`,
 `.field` and the `.button` variants instead of new CSS.
+
+Salary and position are never edited on the Edit form (assumption A3): that screen shows them
+read-only and links to `/Employees/AdjustSalary/{id}`, which is the only write path that also
+appends a `SalaryHistories` row. Deactivation likewise goes through `/Employees/Delete/{id}`,
+which asks for confirmation before the soft delete, because both are state changes with
+consequences the edit form does not model.
 
 ## Scope
 

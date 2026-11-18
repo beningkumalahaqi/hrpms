@@ -1,0 +1,71 @@
+﻿@model EmployeeDto
+@using EnterpriseHR.Domain.Dtos
+@{
+    ViewData["Title"] = "Deactivate employee";
+}
+<div class="page">
+    <header class="page-header">
+        <div class="page-heading">
+            <span class="eyebrow">Employees</span>
+            <h1>Deactivate employee</h1>
+            <p class="page-description">Review the record before removing it from the active workforce.</p>
+        </div>
+        <div class="page-actions">
+            <a class="button secondary" asp-action="Index">Back to directory</a>
+        </div>
+    </header>
+
+    <section class="panel" aria-labelledby="deactivateTitle">
+        <div class="panel-header">
+            <div class="panel-heading">
+                <span class="eyebrow danger-text">Sensitive action</span>
+                <h2 id="deactivateTitle">@Model.FullName</h2>
+                <p>@Model.EmployeeNumber - @Model.PositionTitle</p>
+            </div>
+            <span class="badge active">
+                <svg class="od-icon od-icon-status" aria-hidden="true" focusable="false"><use href="#i-check-circle" /></svg>
+                <span>Active</span>
+            </span>
+        </div>
+
+        <div class="panel-body od-stack">
+            @* The confirmation card: the same values the directory row shows, so the person can
+               check they opened the right record before committing the change. *@
+            <dl class="record-details">
+                <div><dt>Employee number</dt><dd class="mono">@Model.EmployeeNumber</dd></div>
+                <div><dt>Department</dt><dd>@Model.DepartmentName</dd></div>
+                <div><dt>Position</dt><dd>@Model.PositionTitle</dd></div>
+                <div>
+                    <dt>Manager</dt>
+                    <dd>
+                        @if (string.IsNullOrEmpty(Model.ManagerName))
+                        {
+                            <span class="muted" aria-hidden="true">&mdash;</span>
+                            <span class="sr-only">No manager</span>
+                        }
+                        else
+                        {
+                            @Model.ManagerName
+                        }
+                    </dd>
+                </div>
+            </dl>
+
+            <p class="muted">
+                The record and its project history stay available under inactive employees.
+                Deactivation is refused while this person still manages active staff or holds an
+                Active project assignment.
+            </p>
+        </div>
+
+        <div class="panel-footer">
+            @* A state change, so it is a POST: the tag helper writes the antiforgery token. *@
+            <form method="post" asp-action="Delete" asp-route-id="@Model.Id">
+                <div class="form-actions">
+                    <a class="button secondary" asp-action="Index">Keep active</a>
+                    <button class="button danger" type="submit">Deactivate employee</button>
+                </div>
+            </form>
+        </div>
+    </section>
+</div>

@@ -1,0 +1,111 @@
+﻿@model AdjustSalaryViewModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Adjust salary";
+
+    // MVC puts the invalid-field class on the control itself, but it does not mark the control
+    // as invalid for assistive technology. The design system keys its error border off
+    // aria-invalid, so the attribute is emitted from ModelState here.
+    string? Invalid(string field) =>
+        ViewData.ModelState.TryGetValue(field, out var entry) && entry.Errors.Count > 0
+            ? "true"
+            : null;
+
+    string Salary(decimal value) => value.ToString("N0", CultureInfo.CurrentCulture);
+}
+<div class="page">
+    <header class="page-header">
+        <div class="page-heading">
+            <span class="eyebrow">Employees</span>
+            <h1>Adjust salary</h1>
+            <p class="page-description">Change the monthly salary, and optionally the position, of @Model.EmployeeNumber.</p>
+        </div>
+        <div class="page-actions">
+            <a class="button secondary" asp-action="Index">Back to directory</a>
+        </div>
+    </header>
+
+    <form method="post" asp-action="AdjustSalary" asp-route-id="@Model.Id">
+        <section class="panel" aria-labelledby="adjustSalaryTitle">
+            <div class="panel-header">
+                <div class="panel-heading">
+                    <span class="eyebrow">Employee record</span>
+                    <h2 id="adjustSalaryTitle">@Model.FullName</h2>
+                    <p>@Model.EmployeeNumber - @Model.DepartmentName</p>
+                </div>
+                @if (Model.IsActive)
+                {
+                    <span class="badge active">
+                        <svg class="od-icon od-icon-status" aria-hidden="true" focusable="false"><use href="#i-check-circle" /></svg>
+                        <span>Active</span>
+                    </span>
+                }
+                else
+                {
+                    <span class="badge inactive">
+                        <svg class="od-icon od-icon-status" aria-hidden="true" focusable="false"><use href="#i-cancel" /></svg>
+                        <span>Inactive</span>
+                    </span>
+                }
+            </div>
+
+            <div class="panel-body">
+                <div asp-validation-summary="ModelOnly" class="error-summary" role="alert" tabindex="-1"></div>
+
+                @* Current pay and position are read-only: this page is the audit trail, so the
+                   values being replaced stay visible next to the new ones. *@
+                <dl class="record-details salary-current">
+                    <div><dt>Current position</dt><dd id="currentPosition">@Model.PositionTitle</dd></div>
+                    <div>
+                        <dt>Current monthly salary</dt>
+                        <dd class="numeric" id="currentSalary">@Salary(Model.CurrentSalary)</dd>
+                    </div>
+                </dl>
+
+                <hr class="form-divider" />
+
+                <div class="form-grid">
+                    <div class="field od-field">
+                        <label asp-for="NewPositionId">Position <span aria-hidden="true">*</span></label>
+                        <select asp-for="NewPositionId" asp-items="Model.Positions"
+                                aria-invalid="@Invalid(nameof(Model.NewPositionId))" aria-describedby="positionHelp">
+                            <option value="">-- Select --</option>
+                        </select>
+                        <small class="field-help" id="positionHelp">Leave the current position selected for a raise; choose another one for a promotion.</small>
+                        <span asp-validation-for="NewPositionId" class="field-error"></span>
+                    </div>
+
+                    <div class="field od-field">
+                        <label asp-for="NewSalary">New monthly salary <span aria-hidden="true">*</span></label>
+                        <div class="input-prefix">
+                            <span aria-hidden="true">Rp</span>
+                            <input asp-for="NewSalary" type="number" min="0" step="0.01" inputmode="decimal"
+                                   aria-invalid="@Invalid(nameof(Model.NewSalary))" aria-describedby="salaryHelp" />
+                        </div>
+                        <small class="field-help" id="salaryHelp">Gross monthly amount in IDR. It has to fit the selected position's range.</small>
+                        <span asp-validation-for="NewSalary" class="field-error"></span>
+                    </div>
+
+                    <div class="field od-field full">
+                        <label asp-for="Reason">Reason <span aria-hidden="true">*</span></label>
+                        <textarea asp-for="Reason" rows="3"
+                                  aria-invalid="@Invalid(nameof(Model.Reason))" aria-describedby="reasonHelp"></textarea>
+                        <small class="field-help" id="reasonHelp">Recorded with the change in the salary history.</small>
+                        <span asp-validation-for="Reason" class="field-error"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-footer">
+                <div class="form-actions">
+                    <a class="button secondary" asp-action="Index">Cancel</a>
+                    <button class="button primary" type="submit">Save salary change</button>
+                </div>
+            </div>
+        </section>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

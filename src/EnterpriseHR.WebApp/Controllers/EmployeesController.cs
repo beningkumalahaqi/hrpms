@@ -1,3 +1,4 @@
+using System.Globalization;
 using EnterpriseHR.Domain.Common;
 using EnterpriseHR.Domain.Dtos;
 using EnterpriseHR.Domain.Exceptions;
@@ -260,6 +261,206 @@ public class EmployeesController : Controller
         model.Managers = ToSelectList(options.Managers, model.ManagerId);
 
         return View(model);
+    }
+
+    /// <summary>GET /Employees/Delete/{id}: the confirmation card for a soft delete.</summary>
+    /// <remarks>
+    /// Deactivation is a state change, so it is confirmed on its own page and posted, never
+    /// performed by following a link. An already inactive record is sent back to the directory:
+    /// the repository would accept the call as a no-op and report success, which would imply
+    /// something changed.
+    /// </remarks>
+    [HttpGet]
+    public async Task<IActionResult> Delete(int id, CancellationToken ct = default)
+    {
+        var employee = await _employees.GetByIdAsync(id, ct);
+
+        if (employee is null)
+        {
+            return NotFound();
+        }
+
+        if (!employee.IsActive)
+        {
+            TempData["Warning"] =
+                $"Employee {employee.EmployeeNumber} - {employee.FullName} is already inactive.";
+
+            return RedirectToAction(nameof(Index));
+        }
+
+        return View(employee);
+    }
+
+    /// <summary>POST /Employees/Delete/{id}</summary>
+    /// <remarks>
+    /// The repository refuses the soft delete while the employee still manages active staff or
+    /// holds an Active project assignment. Both are <see cref="ConflictException"/>, and the
+    /// message names the blocker and the number of records involved, so it is shown in full on
+    /// the directory rather than replaced with a generic sentence.
+    /// </remarks>
+    [HttpPost]
+    [ActionName("Delete")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteConfirmed(int id, CancellationToken ct = default)
+    {
+        var employee = await _employees.GetByIdAsync(id, ct);
+
+        if (employee is null)
+        {
+            return NotFound();
+        }
+
+        if (!employee.IsActive)
+        {
+            TempData["Warning"] =
+                $"Employee {employee.EmployeeNumber} - {employee.FullName} is already inactive.";
+
+            return RedirectToAction(nameof(Index));
+        }
+
+        try
+        {
+            await _employees.DeactivateAsync(id, ct);
+        }
+        catch (NotFoundException)
+        {
+            // Deleted between the read above and this call.
+            return NotFound();
+        }
+        catch (ConflictException ex)
+        {
+            TempData["Error"] = ex.Message;
+
+            return RedirectToAction(nameof(Index));
+        }
+
+        TempData["Success"] = $"Employee {employee.EmployeeNumber} - {employee.FullName} was deactivated.";
+
+        return RedirectToAction(nameof(Index));
+    }
+
+    /// <summary>
+    /// GET /Employees/AdjustSalary/{id}: the record's current salary and position plus the
+    /// fields that change them.
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> AdjustSalary(int id, CancellationToken ct = default)
+    {
+        var employee = await _employees.GetByIdAsync(id, ct);
+
+        if (employee is null)
+        {
+            return NotFound();
+        }
+
+        var options = await _employees.GetFormOptionsAsync(id, ct);
+
+        var model = new AdjustSalaryViewModel
+        {
+            // The select starts on the stored position, so leaving it alone means "same
+            // position" and only a different value turns the request into a promotion.
+            NewPositionId = employee.PositionId,
+        };
+
+        PopulateAdjustSalary(model, employee, options);
+
+        return View(model);
+    }
+
+    /// <summary>POST /Employees/AdjustSalary/{id}</summary>
+    /// <remarks>
+    /// Only a changed selection is sent as <c>NewPositionId</c>: the repository treats null as
+    /// "keep the current position", and sending the unchanged id would make an ordinary raise
+    /// indistinguishable from a move. An unknown id answers 404 on GET and on POST, so a replay
+    /// cannot write against a record that is gone.
+    /// </remarks>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AdjustSalary(
+        int id,
+        AdjustSalaryViewModel model,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+
+        var employee = await _employees.GetByIdAsync(id, ct);
+
+        if (employee is null)
+        {
+            return NotFound();
+        }
+
+        var options = await _employees.GetFormOptionsAsync(id, ct);
+
+        if (ModelState.IsValid)
+        {
+            var request = new UpdateSalaryRequest
+            {
+                NewSalary = model.NewSalary!.Value,
+                NewPositionId = model.NewPositionId != employee.PositionId
+                    ? model.NewPositionId
+                    : null,
+                Reason = model.Reason,
+            };
+
+            // Range, inactive employee, unknown position, no-op and self-manager rules live in
+            // the repository. They all describe something the person at the form can correct, so
+            // the message becomes a form-level error instead of an error page.
+            try
+            {
+                await _employees.ChangeSalaryAsync(id, request, ct);
+            }
+            catch (BusinessRuleException ex)
+            {
+                ModelState.AddModelError(string.Empty, ex.Message);
+            }
+            catch (NotFoundException)
+            {
+                return NotFound();
+            }
+
+            if (ModelState.IsValid)
+            {
+                var title = request.NewPositionId is null
+                    ? employee.PositionTitle
+                    : options.Positions
+                        .FirstOrDefault(option => option.Value == request.NewPositionId)?.Text
+                        ?? employee.PositionTitle;
+
+                TempData["Success"] =
+                    $"Employee {employee.EmployeeNumber} - {employee.FullName} is now {title} "
+                    + $"at {request.NewSalary.ToString("N0", CultureInfo.CurrentCulture)} per month.";
+
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        // The read-only summary and the option list are rebuilt from the current row and the
+        // database, never from the body. The submitted salary, position and reason are kept so
+        // the rejected values stay visible next to the message.
+        PopulateAdjustSalary(model, employee, options);
+
+        return View(model);
+    }
+
+    /// <summary>
+    /// Fills the read-only half of the salary page from the stored row and rebuilds the position
+    /// select, keeping <see cref="AdjustSalaryViewModel.NewPositionId"/> as submitted.
+    /// </summary>
+    private static void PopulateAdjustSalary(
+        AdjustSalaryViewModel model,
+        EmployeeDto employee,
+        EmployeeFormOptions options)
+    {
+        model.Id = employee.Id;
+        model.EmployeeNumber = employee.EmployeeNumber;
+        model.FullName = employee.FullName;
+        model.DepartmentName = employee.DepartmentName;
+        model.PositionId = employee.PositionId;
+        model.PositionTitle = employee.PositionTitle;
+        model.CurrentSalary = employee.Salary;
+        model.IsActive = employee.IsActive;
+        model.Positions = ToSelectList(options.Positions, model.NewPositionId);
     }
 
     /// <summary>
