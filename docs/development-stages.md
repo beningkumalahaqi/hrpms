@@ -22,7 +22,8 @@ the log of what each stage added. The authoritative "what is done" summary is th
 | T14 | Employee create/update | done |
 | T15 | Employee soft delete with referential protection | done |
 | T16 | Salary adjustment and promotion with audit trail | done |
-| T17+ | Application features | pending |
+| T17 | Project reads: list and QueryMultiple details | done |
+| T18+ | Application features | pending |
 
 ## T01–T04 — Infrastructure and database
 
@@ -75,7 +76,7 @@ T10 added the seven repository and service interfaces — 28 methods, `Cancellat
 ct = default` on every one, `Task<T?>` on the four single-record lookups, and DTO/request
 types (never entities) crossing the repository boundary.
 
-## T11–T16 — Data access
+## T11–T17 — Data access
 
 T11 added `RepositoryBase`: `OpenAsync`, the only transaction runner in the solution, and
 `TranslateSql` for SQL Server errors 2627/2601/547. See
@@ -127,9 +128,20 @@ inserts one `SalaryHistories` row (old salary, new salary, reason, default `Chan
 the same transaction, so a failure in either write rolls both back. With this member in
 place `EmployeeRepository` implements `IEmployeeRepository`.
 
+T17 added `ProjectRepository` with the two project read paths. `GetAllProjectsAsync` is a
+single grouped statement joining departments and a filtered `Employees` join, so
+`ActiveMemberCount` comes from one aggregate rather than a query per project — inactive
+members hold their assignment but are not counted. `GetProjectDetailsAsync` sends the
+project row and its assignments as two `SELECT`s in one `QueryMultipleAsync` batch, then
+reads the first result set as `ProjectDetailDto` and attaches the second as
+`ProjectMemberDto.Members`; `TotalAllocationOfMembers` is computed from the loaded list.
+Assignments are never filtered by employee or project status, so a Completed or Cancelled
+project still lists who worked on it and an inactive member appears with
+`IsEmployeeActive = false`. An unknown id returns null rather than an empty project.
+
 ## Next
 
-T17 onward adds the application features: the project and report repositories, the service
-implementations, the API controllers with exception-to-status-code middleware, and the Razor
-screens ported from `design-system/`. Repository registration in
+T18 onward adds the application features: the project write path and the report repository,
+the service implementations, the API controllers with exception-to-status-code middleware,
+and the Razor screens ported from `design-system/`. Repository registration in
 `AddEnterpriseHrDataAccess` lands with the first service that resolves one.

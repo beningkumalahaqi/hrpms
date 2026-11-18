@@ -116,14 +116,16 @@ hosts call it from `Program.cs`. Repositories are not registered there yet: they
 scoped services when the first service that needs them lands.
 
 Current repositories: `LookupRepository` (department, position and employee option
-lists) and `EmployeeRepository`, which implements `IEmployeeRepository` (paged reads with
-four-type multi-mapping, create, update, soft delete, and salary adjustment). Deactivation
-never removes the row: `IsActive` becomes 0, and a transaction that holds the row under
-`UPDLOCK` refuses the change while an active employee still reports to this person, or
-while they hold an assignment on an `Active` project. A salary adjustment changes
-`Salary`/`PositionId` and writes the matching `SalaryHistories` row in the same
-transaction. The project and report repositories, and all service implementations, come
-with the application features — see [development-stages.md](development-stages.md).
+lists), `EmployeeRepository`, which implements `IEmployeeRepository` (paged reads with
+four-type multi-mapping, create, update, soft delete, and salary adjustment), and
+`ProjectRepository` (project list with active-member counts, and details with every
+assignment in one batch). Deactivation never removes the row: `IsActive` becomes 0, and a
+transaction that holds the row under `UPDLOCK` refuses the change while an active employee
+still reports to this person, or while they hold an assignment on an `Active` project. A
+salary adjustment changes `Salary`/`PositionId` and writes the matching `SalaryHistories`
+row in the same transaction. The project write path, the report repository and all service
+implementations come with the application features — see
+[development-stages.md](development-stages.md).
 
 ## Frontend and design system
 
