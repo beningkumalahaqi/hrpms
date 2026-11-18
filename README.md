@@ -284,7 +284,8 @@ serving requests that touch the database.
 | T11 | Repository base, transaction runner, SQL error translation | done |
 | T12 | Lookup repository | done |
 | T13 | Employee read operations (multi-mapping) | done |
-| T14+ | Application features | pending |
+| T14 | Employee create/update | done |
+| T15+ | Application features | pending |
 
 The schema from T02 is in place, so `db-init` now actually runs `db/01_schema.sql`
 instead of reporting that it has nothing to do. T03 adds
@@ -377,6 +378,19 @@ wildcard matches literally. Paging clamps `Page` to at least 1 and `PageSize` to
 computes the offset in `long`, so an enormous page number yields an empty page instead of an
 overflow. The class is `partial` and does not yet declare `IEmployeeRepository`, because the
 write members arrive in the following stages.
+
+T14 adds the create and update paths to the same `EmployeeRepository`. `CreateEmployeeAsync`
+checks the salary against the selected position's `MinSalary`/`MaxSalary` range (A2), confirms
+the department exists and that a given manager exists and is active, then rejects a duplicate
+employee number or email with a `ConflictException` naming the field. Case-insensitive
+matching comes from the database collation, not from lowercasing either side, so the unique
+indexes stay usable. The insert returns `SCOPE_IDENTITY()` and lets the `IsActive` default
+supply 1; the uniqueness checks only produce the precise message, and the unique constraints
+behind them are translated to the same conflict as a guard against two concurrent creates.
+`UpdateEmployeeAsync` validates the department and manager, refuses `ManagerId == Id`, checks
+the email excluding the employee's own row, and updates only `FullName`, `Email`,
+`DepartmentId`, `ManagerId` and `JoinDate` — salary and position are deliberately absent from
+the statement, per A3. Zero affected rows raises `NotFoundException`.
 
 The design system export in `design-system/` is static reference material at this
 stage. No Razor view or layout uses it yet; that starts when the dashboard screens are

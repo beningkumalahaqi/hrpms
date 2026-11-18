@@ -1,9 +1,11 @@
+using System.Data.Common;
 using System.Text;
 using Dapper;
 using EnterpriseHR.DataAccess.Infrastructure;
 using EnterpriseHR.Domain.Common;
 using EnterpriseHR.Domain.Dtos;
 using EnterpriseHR.Domain.Entities;
+using EnterpriseHR.Domain.Exceptions;
 using EnterpriseHR.Domain.Requests;
 
 namespace EnterpriseHR.DataAccess.Repositories;
@@ -80,6 +82,64 @@ public sealed partial class EmployeeRepository(IDbConnectionFactory factory)
         {SelectEmployeeColumnsSql}{EmployeeJoinsSql}
 
         WHERE e.Id = @Id;
+        """;
+
+    private const string SelectPositionSalaryRangeSql = """
+        SELECT MinSalary, MaxSalary
+        FROM dbo.Positions
+        WHERE Id = @Id;
+        """;
+
+    private const string SelectDepartmentExistsSql = """
+        SELECT CAST(CASE WHEN EXISTS (SELECT 1 FROM dbo.Departments WHERE Id = @Id)
+                         THEN 1 ELSE 0 END AS BIT);
+        """;
+
+    // A manager must be an existing, still-active employee. One row back means both hold.
+    private const string SelectActiveEmployeeExistsSql = """
+        SELECT CAST(CASE WHEN EXISTS (
+                   SELECT 1 FROM dbo.Employees WHERE Id = @Id AND IsActive = 1)
+               THEN 1 ELSE 0 END AS BIT);
+        """;
+
+    // The columns are CI-collated, so these comparisons are case-insensitive without lowering
+    // either side; @ExcludeId lets the update path ignore the row being edited.
+    private const string SelectEmployeeNumberExistsSql = """
+        SELECT CAST(CASE WHEN EXISTS (
+                   SELECT 1 FROM dbo.Employees
+                   WHERE EmployeeNumber = @EmployeeNumber
+                     AND (@ExcludeId IS NULL OR Id <> @ExcludeId))
+               THEN 1 ELSE 0 END AS BIT);
+        """;
+
+    private const string SelectEmailExistsSql = """
+        SELECT CAST(CASE WHEN EXISTS (
+                   SELECT 1 FROM dbo.Employees
+                   WHERE Email = @Email
+                     AND (@ExcludeId IS NULL OR Id <> @ExcludeId))
+               THEN 1 ELSE 0 END AS BIT);
+        """;
+
+    // IsActive is left to DF_Employees_IsActive (= 1); Salary and PositionId are only ever set
+    // here, never by UpdateEmployeeAsync (A3).
+    private const string InsertEmployeeSql = """
+        INSERT INTO dbo.Employees
+            (EmployeeNumber, FullName, Email, DepartmentId, PositionId, ManagerId, Salary, JoinDate)
+        VALUES
+            (@EmployeeNumber, @FullName, @Email, @DepartmentId, @PositionId, @ManagerId, @Salary, @JoinDate);
+
+        SELECT CAST(SCOPE_IDENTITY() AS INT);
+        """;
+
+    // Salary and PositionId are deliberately absent: the edit form cannot change them (A3).
+    private const string UpdateEmployeeSql = """
+        UPDATE dbo.Employees
+        SET FullName     = @FullName,
+            Email        = @Email,
+            DepartmentId = @DepartmentId,
+            ManagerId    = @ManagerId,
+            JoinDate     = @JoinDate
+        WHERE Id = @Id;
         """;
 
     public async Task<PagedResult<EmployeeDto>> GetAllEmployeesAsync(
@@ -201,4 +261,176 @@ public sealed partial class EmployeeRepository(IDbConnectionFactory factory)
         pattern.Append('%');
         return pattern.ToString();
     }
+
+    public async Task<int> CreateEmployeeAsync(
+        CreateEmployeeRequest request,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        await using var conn = await OpenAsync(ct);
+
+        // A2: the salary has to fit the selected position, and the position has to exist.
+        var range = await conn.QuerySingleOrDefaultAsync<PositionSalaryRange>(
+            new CommandDefinition(SelectPositionSalaryRangeSql, new { id = request.PositionId },
+                cancellationToken: ct));
+
+        if (range is null)
+        {
+            throw new BusinessRuleException("Position not found.");
+        }
+
+        if (request.Salary < range.MinSalary || request.Salary > range.MaxSalary)
+        {
+            throw new BusinessRuleException(
+                $"Salary must be between {range.MinSalary:N0} and {range.MaxSalary:N0} for this position.");
+        }
+
+        if (!await DepartmentExistsAsync(conn, request.DepartmentId, ct))
+        {
+            throw new BusinessRuleException("Department not found.");
+        }
+
+        if (request.ManagerId is { } managerId
+            && !await ActiveEmployeeExistsAsync(conn, managerId, ct))
+        {
+            throw new BusinessRuleException("Manager not found or is not active.");
+        }
+
+        await EnsureEmployeeNumberAvailableAsync(conn, request.EmployeeNumber, null, ct);
+        await EnsureEmailAvailableAsync(conn, request.Email, null, ct);
+
+        ct.ThrowIfCancellationRequested();
+
+        // The uniqueness checks above are advisory: two concurrent creates can both pass them.
+        // UQ_Employees_EmployeeNumber / UQ_Employees_Email are the real guard, and the translator
+        // turns their 2627 into the same ConflictException the checks raise.
+        return await ExecuteSqlAsync(async () =>
+            await conn.ExecuteScalarAsync<int>(
+                new CommandDefinition(InsertEmployeeSql, new
+                {
+                    request.EmployeeNumber,
+                    request.FullName,
+                    request.Email,
+                    request.DepartmentId,
+                    request.PositionId,
+                    request.ManagerId,
+                    request.Salary,
+                    request.JoinDate,
+                }, cancellationToken: ct)));
+    }
+
+    public async Task UpdateEmployeeAsync(
+        int id,
+        UpdateEmployeeRequest request,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        await using var conn = await OpenAsync(ct);
+
+        if (!await DepartmentExistsAsync(conn, request.DepartmentId, ct))
+        {
+            throw new BusinessRuleException("Department not found.");
+        }
+
+        if (request.ManagerId is { } managerId)
+        {
+            // Checked here as well as by CK_Employees_Manager_NotSelf: the constraint message is
+            // meaningless to a caller, and it only fires once the row is being written.
+            if (managerId == id)
+            {
+                throw new BusinessRuleException("An employee cannot be their own manager.");
+            }
+
+            if (!await ActiveEmployeeExistsAsync(conn, managerId, ct))
+            {
+                throw new BusinessRuleException("Manager not found or is not active.");
+            }
+        }
+
+        // Excluding self is what lets an update keep the employee's current email address.
+        await EnsureEmailAvailableAsync(conn, request.Email, id, ct);
+
+        ct.ThrowIfCancellationRequested();
+
+        var affected = await ExecuteSqlAsync(async () =>
+            await conn.ExecuteAsync(
+                new CommandDefinition(UpdateEmployeeSql, new
+                {
+                    id,
+                    request.FullName,
+                    request.Email,
+                    request.DepartmentId,
+                    request.ManagerId,
+                    request.JoinDate,
+                }, cancellationToken: ct)));
+
+        if (affected == 0)
+        {
+            throw new NotFoundException($"Employee {id} was not found.");
+        }
+    }
+
+    private static async Task<bool> DepartmentExistsAsync(
+        DbConnection conn,
+        int departmentId,
+        CancellationToken ct)
+    {
+        return await conn.ExecuteScalarAsync<bool>(
+            new CommandDefinition(SelectDepartmentExistsSql, new { id = departmentId },
+                cancellationToken: ct));
+    }
+
+    private static async Task<bool> ActiveEmployeeExistsAsync(
+        DbConnection conn,
+        int employeeId,
+        CancellationToken ct)
+    {
+        return await conn.ExecuteScalarAsync<bool>(
+            new CommandDefinition(SelectActiveEmployeeExistsSql, new { id = employeeId },
+                cancellationToken: ct));
+    }
+
+    private static async Task EnsureEmployeeNumberAvailableAsync(
+        DbConnection conn,
+        string employeeNumber,
+        int? excludeId,
+        CancellationToken ct)
+    {
+        var taken = await conn.ExecuteScalarAsync<bool>(
+            new CommandDefinition(SelectEmployeeNumberExistsSql,
+                new { employeeNumber, excludeId }, cancellationToken: ct));
+
+        if (taken)
+        {
+            throw new ConflictException(
+                $"Employee number '{employeeNumber}' is already in use.");
+        }
+    }
+
+    private static async Task EnsureEmailAvailableAsync(
+        DbConnection conn,
+        string email,
+        int? excludeId,
+        CancellationToken ct)
+    {
+        var taken = await conn.ExecuteScalarAsync<bool>(
+            new CommandDefinition(SelectEmailExistsSql,
+                new { email, excludeId }, cancellationToken: ct));
+
+        if (taken)
+        {
+            throw new ConflictException($"Email '{email}' is already in use.");
+        }
+    }
+
+    /// <summary>Salary bounds of the position a new employee is being hired into.</summary>
+    private sealed class PositionSalaryRange
+    {
+        public decimal MinSalary { get; set; }
+
+        public decimal MaxSalary { get; set; }
+    }
 }
+
