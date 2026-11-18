@@ -1,7 +1,7 @@
 # Getting Started
 
 Everything needed to run EnterpriseHRSystem locally: SQL Server in Docker, the database
-scripts, configuration, and the two application hosts.
+scripts, configuration, and the application.
 
 ## Prerequisites
 
@@ -81,8 +81,7 @@ rules new scripts must follow.
 
 ## 4. Connection string
 
-Both hosts read the same connection string under the key
-`ConnectionStrings:EnterpriseHR`:
+The application reads one connection string under the key `ConnectionStrings:EnterpriseHR`:
 
 ```json
 {
@@ -92,11 +91,10 @@ Both hosts read the same connection string under the key
 }
 ```
 
-`src/EnterpriseHR.WebApp/appsettings.Development.json` and
-`src/EnterpriseHR.Api/appsettings.Development.json` ship this string built from the
-`.env.example` placeholder password. If your `.env` uses a different
-`MSSQL_SA_PASSWORD`, update both files to match. Only commit a placeholder password in
-`appsettings` files; those files are tracked, `.env` is not.
+`src/EnterpriseHR.WebApp/appsettings.Development.json` ships this string built from the
+`.env.example` placeholder password. If your `.env` uses a different `MSSQL_SA_PASSWORD`,
+update that file to match. Only commit a placeholder password in `appsettings` files; those
+files are tracked, `.env` is not.
 
 `AddEnterpriseHrDataAccess` in `EnterpriseHR.DataAccess` reads the key once and throws
 `InvalidOperationException` at startup when it is missing. Because the key only exists in
@@ -108,28 +106,30 @@ export ConnectionStrings__EnterpriseHR="Server=localhost,1433;Database=Enterpris
 ```
 
 The double underscore maps to the `:` hierarchy. Environment variables win over
-`appsettings*.json`, which is the intended way to configure the API in a container or
+`appsettings*.json`, which is the intended way to configure the application in a container or
 pipeline.
 
-## 5. Run the applications
+## 5. Run the application
 
-Dev ports come from each project's `Properties/launchSettings.json`.
+There is one runnable project, `src/EnterpriseHR.WebApp`. It serves the MVC dashboard, the
+REST API under `/api/**` and Swagger, all on one origin. The development URL comes from
+`src/EnterpriseHR.WebApp/Properties/launchSettings.json`.
 
-| Application | URL |
-| ----------- | --- |
+| What | URL |
+| ---- | --- |
 | MVC dashboard | <http://localhost:5100> |
-| REST API | <http://localhost:5200> |
-| Swagger UI | <http://localhost:5200/swagger> |
+| REST API | <http://localhost:5100/api/**> |
+| Swagger UI | <http://localhost:5100/swagger> |
 
 ```bash
-# Terminal 1 - MVC dashboard
-dotnet run --project src/EnterpriseHR.WebApp --urls http://localhost:5100
-
-# Terminal 2 - REST API
-dotnet run --project src/EnterpriseHR.Api --urls http://localhost:5200
+dotnet run --project src/EnterpriseHR.WebApp
 ```
 
-SQL Server must be running and `EnterpriseHRDB` initialized before either host serves
+`EnterpriseHR.Api` is a class library, not a second application: it holds the API
+controllers, which this host discovers as an MVC application part. There is nothing to run
+on port 5200.
+
+SQL Server must be running and `EnterpriseHRDB` initialized before the application serves
 requests that touch the database.
 
 ## Reset and troubleshooting
@@ -161,7 +161,7 @@ in the local connection string.
 
 **Password changes.** `MSSQL_SA_PASSWORD` is only applied when the data volume is
 initialized. After changing it in `.env`, recreate the volume with
-`docker compose down -v` and update both `appsettings.Development.json` files.
+`docker compose down -v` and update `src/EnterpriseHR.WebApp/appsettings.Development.json`.
 
 ### Apple Silicon
 

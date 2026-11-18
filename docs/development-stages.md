@@ -27,6 +27,7 @@ the log of what each stage added. The authoritative "what is done" summary is th
 | T19 | Report repository: department summary via stored procedure | done |
 | T20 | Services and dependency-injection registration | done |
 | T21 | API bootstrap, response envelope, validation, Swagger | done |
+| T21.5 | Single host: Api as a class library, WebApp serves MVC + `/api/**` + Swagger | done |
 | T22+ | API endpoints and exception middleware | pending |
 
 ## T01–T04 — Infrastructure and database
@@ -51,16 +52,17 @@ data.
 
 T05 added `EnterpriseHRSystem.sln` and the four projects under `src/`, wired
 `DataAccess → Domain` and `{WebApp, Api} → {Domain, DataAccess}`.
-`dotnet build EnterpriseHRSystem.sln` succeeds with no warnings, the MVC host serves on
-<http://localhost:5100>, and the API serves Swagger UI on
-<http://localhost:5200/swagger>.
+`dotnet build EnterpriseHRSystem.sln` succeeds with no warnings, the MVC host served on
+<http://localhost:5100>, and the API served Swagger UI on port 5200. T21.5 later collapsed
+the two hosts into one (see below): `Api` is now a class library and the MVC host serves
+both.
 
 T06 added the shared data-access wiring: `IDbConnectionFactory` with the
 `Microsoft.Data.SqlClient` implementation, and `AddEnterpriseHrDataAccess`, which
-validates `ConnectionStrings:EnterpriseHR` and registers the factory as a singleton. Both
-hosts call it from `Program.cs`, so either one fails at startup with a clear message when
-the connection string is missing. Repositories register as scoped in the same method as
-they are added.
+validates `ConnectionStrings:EnterpriseHR` and registers the factory as a singleton. T05's
+two hosts each called it from their own `Program.cs`, so either one failed at startup with a
+clear message when the connection string was missing. Repositories register as scoped in the
+same method as they are added.
 
 ## T07–T10 — Domain layer
 
@@ -194,8 +196,42 @@ T21 also fixed a latent Domain bug it tripped over: `[Range(typeof(decimal), ...
 string limits with the current culture, so on a locale whose decimal separator is `,`
 (`en-ID`, the machine this was verified on) `"0.01"` parsed as 1 and the max limit threw
 `ArgumentException` during validation — a 500 on every create/update employee and salary
-request in both hosts. Both attributes now set `ParseLimitsInInvariantCulture = true`; the
+request in either host. Both attributes now set `ParseLimitsInInvariantCulture = true`; the
 bounds themselves are unchanged.
+
+## T21.5 — One host, one origin
+
+T21.5 collapsed the two hosts into one. `EnterpriseHR.Api` changed from
+`Microsoft.NET.Sdk.Web` to `Microsoft.NET.Sdk` with a `Microsoft.AspNetCore.App`
+`FrameworkReference`, so it still compiles controllers but is no longer an application: its
+`Program.cs`, `Properties/launchSettings.json` and both `appsettings` files were deleted, and
+the `Swashbuckle.AspNetCore` package moved to `EnterpriseHR.WebApp`, which is where the
+host-only Swagger configuration had to live anyway. The `.http` file now points at port 5100.
+
+`EnterpriseHR.WebApp` became the only executable project. Its `Program.cs` calls
+`AddControllersWithViews()` and then `.AddApplicationPart(typeof(ApiControllerBase).Assembly)`,
+which is what makes the controllers in `Api` discoverable without moving their source into
+`WebApp` or using a reverse proxy. The JSON camelCase option, the
+`InvalidModelStateResponseFactory` envelope and the `ToCamelCasePath` helper moved across
+unchanged, as did the Swagger document definition; only the XML-comment path changed, and it
+now looks for `EnterpriseHR.Api.xml` in the host's output directory rather than the host's own
+XML file. `Program.cs` maps `MapControllers()` before the conventional
+`{controller=Home}/{action=Index}/{id?}` route so `/api/**` resolves to attribute routes and
+everything else falls through to MVC. `AddEnterpriseHrDataAccess(builder.Configuration)` is
+still called exactly once, so both halves share one connection string and one set of scoped
+registrations.
+
+The reference graph is now `WebApp → {Domain, DataAccess, Api}`, `Api → {Domain, DataAccess}`,
+`DataAccess → Domain`, `Domain → none`, which keeps `Api` from depending on its host.
+
+Verified from a single `dotnet run --project src/EnterpriseHR.WebApp`: MVC at
+<http://localhost:5100> served `<title>Home Page</title>` with 200, Swagger UI returned 200 at
+`/swagger/index.html` (`/swagger` issues a 301 to it) and listed the probe controller's
+`/api/T215Probe` routes, the API envelope answered 200/201/400 exactly as in T21, an API
+controller resolved `IEmployeeService` and read live seed data (`total=10`, first employee
+`Andi Wijaya`), and nothing listened on port 5200. An unknown `/api/**` path and an unknown
+MVC path both return 404; `/api` is not reachable outside the prefix. Swagger remains
+Development-only: in Production it answers 404 while MVC still serves 200.
 
 ## Next
 

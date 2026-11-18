@@ -1,8 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
+  <!-- The API controllers live in EnterpriseHR.Api; this host references that assembly and
+       registers it as an MVC application part so /api/** resolves from the same process. -->
   <ItemGroup>
     <ProjectReference Include="..\EnterpriseHR.Domain\EnterpriseHR.Domain.csproj" />
     <ProjectReference Include="..\EnterpriseHR.DataAccess\EnterpriseHR.DataAccess.csproj" />
+    <ProjectReference Include="..\EnterpriseHR.Api\EnterpriseHR.Api.csproj" />
+  </ItemGroup>
+
+  <!-- Swagger/OpenAPI is host configuration, so the package belongs here rather than in Api. -->
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.3.1" />
   </ItemGroup>
 
   <PropertyGroup>

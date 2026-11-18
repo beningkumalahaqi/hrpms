@@ -11,6 +11,7 @@ contract for the dashboard.
 | Runtime / framework | .NET 8 (`net8.0`) |
 | Web application | ASP.NET Core MVC with Razor Views and Tag Helpers, styled by the HR Workspace design system |
 | REST API | ASP.NET Core Web API, controller-based endpoints, Swagger/OpenAPI, global exception-handling middleware |
+| Hosting | One process, `EnterpriseHR.WebApp`, serving MVC at `/` and the API at `/api/**`; `EnterpriseHR.Api` is a class library |
 | Database | Microsoft SQL Server 2022, database `EnterpriseHRDB`, run locally with Docker Compose |
 | Data access | Dapper (asynchronous methods only) with `Microsoft.Data.SqlClient` |
 | Database programming | Parameterized SQL, `IDbTransaction`, stored procedures, Dapper multi-mapping, `QueryMultipleAsync` |
@@ -32,7 +33,12 @@ modules over a single database:
 | HR / admin dashboard | `EnterpriseHR.WebApp` | HR staff and administrators working in a browser |
 | RESTful integration API | `EnterpriseHR.Api` | External systems and integration clients |
 
-Both call the same `EnterpriseHR.DataAccess` project. Business rules live in
+Both modules serve from one ASP.NET Core process, `EnterpriseHR.WebApp`, on one origin:
+the dashboard uses normal MVC routes (`/`, `/employees`) while the API answers under
+`/api/**`. `EnterpriseHR.Api` is a class library of controllers that the host discovers as
+an MVC application part — it is not a second executable.
+
+Both modules call the same `EnterpriseHR.DataAccess` project. Business rules live in
 `EnterpriseHR.Domain`, so the dashboard and the API apply identical validation and
 calculation logic.
 
@@ -42,23 +48,26 @@ calculation logic.
 EnterpriseHRSystem.sln
 ├── src/EnterpriseHR.Domain        # entities, enums, business rules
 ├── src/EnterpriseHR.DataAccess    # Dapper repositories, SQL, transactions
-├── src/EnterpriseHR.WebApp        # ASP.NET Core MVC dashboard
-└── src/EnterpriseHR.Api           # ASP.NET Core Web API
+├── src/EnterpriseHR.WebApp        # the only executable host: MVC views + /api/**
+└── src/EnterpriseHR.Api           # class library: API controllers, envelope, API middleware
 ```
 
 | Project | Responsibility | Depends on |
 | ------- | -------------- | ---------- |
 | `EnterpriseHR.Domain` | Entities, enums, DTOs, request types, domain validation and calculation rules, exception hierarchy, and the repository/service interfaces. No database or web dependencies. | none |
 | `EnterpriseHR.DataAccess` | Dapper repositories, services (thin orchestration), parameterized SQL, stored-procedure calls, mapping, transaction handling, and DI registration. Owns the `Microsoft.Data.SqlClient` connection factory and connection-string configuration. | Domain |
-| `EnterpriseHR.WebApp` | ASP.NET Core MVC host. Razor Views, view models, controllers, Tag Helpers, and the design-system layout. Calls DataAccess for all persistence. | Domain, DataAccess |
-| `EnterpriseHR.Api` | ASP.NET Core Web API host. Controller-based JSON endpoints, Swagger/OpenAPI documentation, global exception-handling middleware, DTOs. Calls DataAccess for all persistence. | Domain, DataAccess |
+| `EnterpriseHR.WebApp` | The only executable application: ASP.NET Core MVC host with Razor Views, view models, controllers, Tag Helpers, the design-system layout, Swagger, and the JSON/validation configuration. Registers `EnterpriseHR.Api` as an MVC application part so its controllers are served from this process. Calls DataAccess for all persistence. | Domain, DataAccess, Api |
+| `EnterpriseHR.Api` | Class library, not a host: API controllers deriving from `ApiControllerBase`, the `ApiResponse<T>` envelope, and API-specific middleware. No `Program.cs`, no `appsettings`, no launch profile. Routes stay under `api/[controller]`. | Domain, DataAccess |
 
-There is no fifth project and no separate services project: the orchestration services live in
-`EnterpriseHR.DataAccess/Services/`, next to the repositories they call, and the two hosts stay
-thin (controllers bind, call a service, render). SQL stays in DataAccess.
-`EnterpriseHR.DataAccess` is the single place where SQL is written; neither host opens a
-`SqlConnection` directly, which is what keeps the MVC dashboard and the API consistent as the
-schema evolves.
+There is no fifth project, no separate services project and no reverse proxy: the
+orchestration services live in `EnterpriseHR.DataAccess/Services/`, next to the repositories
+they call. `EnterpriseHR.DataAccess` is the single place where SQL is written; nothing opens
+a `SqlConnection` directly, which is what keeps the MVC dashboard and the API consistent as
+the schema evolves.
+
+The `EnterpriseHR.Api` reference direction is one-way — WebApp → Api — so the API assembly
+cannot depend on the host. That is what lets `Api` stay a plain library with a
+`Microsoft.AspNetCore.App` framework reference and nothing executable in it.
 
 ## Domain layer
 
@@ -76,7 +85,7 @@ schema evolves.
   rules.
 - `Exceptions/` — abstract `AppException` plus `NotFoundException` (404),
   `BusinessRuleException` (400) and `ConflictException` (409). The mapping is a
-  convention, not code: Domain references no ASP.NET Core assemblies, and the hosts'
+  convention, not code: Domain references no ASP.NET Core assemblies, and the API host's
   middleware/filter translates the types into status codes.
 - `Interfaces/` — `ILookupRepository`, `IEmployeeRepository`, `IProjectRepository`,
   `IReportRepository` and the `IEmployeeService`, `IProjectService`, `IReportService`
@@ -114,9 +123,10 @@ repository inherits. It exposes:
 
 `AddEnterpriseHrDataAccess` (in `ServiceCollectionExtensions.cs`) validates
 `ConnectionStrings:EnterpriseHR`, registers `IDbConnectionFactory` as a singleton, and
-registers the four repositories and three services as scoped. Both hosts call it from
-`Program.cs`, so either one fails at startup when the connection string is missing, and a
-missing registration surfaces on the first request instead of at startup.
+registers the four repositories and three services as scoped. `EnterpriseHR.WebApp` calls it
+exactly once, in its `Program.cs`, so the process fails at startup when the connection string
+is missing, and a missing registration surfaces on the first request instead of at startup.
+The API controllers resolve those same registrations because they run inside the same host.
 
 Current repositories: `LookupRepository` (department, position and employee option
 lists), `EmployeeRepository`, which implements `IEmployeeRepository` (paged reads with
@@ -154,7 +164,15 @@ The API answers with one envelope, success or failure:
 `Ok(data, message = "OK")` and `Fail(message, data = default)`. Controllers derive from
 `ApiControllerBase`, which carries `[ApiController]` and the `api/[controller]` route template
 plus the `OkResponse<T>` and `CreatedResponse<T>` helpers, so the shape cannot drift per
-endpoint. Serialization is camelCase, pinned explicitly in `Program.cs` rather than inherited.
+endpoint. Serialization is camelCase, pinned explicitly in the WebApp `Program.cs` rather than
+inherited.
+
+The API is served by the MVC host, not a second process. `Program.cs` calls
+`AddControllersWithViews().AddApplicationPart(typeof(ApiControllerBase).Assembly)`, so the
+controllers in `EnterpriseHR.Api` are discovered without their source living in WebApp, then
+`MapControllers()` (attribute routes, `/api/**`) before the conventional MVC route. Both
+routes share one origin, one `AddEnterpriseHrDataAccess` registration and one connection
+string.
 
 | Situation | Status |
 | --------- | ------ |
@@ -168,7 +186,7 @@ endpoint. Serialization is camelCase, pinned explicitly in `Program.cs` rather t
 A model-binding failure returns 400 with the same envelope, `message` = `"Validation failed."`
 and `data` = a field-to-messages dictionary keyed by the camelCase path the client sent
 (`reason`, `body.name`). Swagger UI is served at `/swagger` in Development only; the document
-is titled **EnterpriseHR API v1**.
+is titled **EnterpriseHR API v1** and documents the controllers from the Api assembly.
 
 ## Frontend and design system
 

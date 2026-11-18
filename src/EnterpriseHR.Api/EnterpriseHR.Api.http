@@ -1,7 +1,15 @@
-@EnterpriseHR.Api_HostAddress = http://localhost:5200
+@EnterpriseHR.Api_HostAddress = http://localhost:5100
+
+# The API runs inside the WebApp host; there is no separate process or port.
 
 # Swagger UI
 GET {{EnterpriseHR.Api_HostAddress}}/swagger/index.html
 Accept: text/html
+
+###
+
+# OpenAPI document
+GET {{EnterpriseHR.Api_HostAddress}}/swagger/v1/swagger.json
+Accept: application/json
 
 ###

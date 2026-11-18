@@ -6,9 +6,10 @@ Guidance for coding agents working in this repository. Read this before starting
 
 - EnterpriseHRSystem: .NET 8 / C# 12 HR management app on SQL Server 2022 (`EnterpriseHRDB`).
 - Four projects under `src/`: `EnterpriseHR.Domain`, `EnterpriseHR.DataAccess`,
-  `EnterpriseHR.WebApp` (ASP.NET Core MVC + Razor Views), `EnterpriseHR.Api`
-  (controller-based Web API + Swagger).
-- Data flow: WebApp/Api → DataAccess (Dapper + `Microsoft.Data.SqlClient`) → SQL Server.
+  `EnterpriseHR.WebApp` (the only executable host: ASP.NET Core MVC + Razor Views, and it
+  serves the API under `/api/**` and Swagger), `EnterpriseHR.Api` (class library with the
+  API controllers, response envelope and API middleware).
+- Data flow: WebApp controllers → DataAccess (Dapper + `Microsoft.Data.SqlClient`) → SQL Server.
   Stored procedures and schema live in `db/`.
 - No EF Core, no SPA, no separate frontend. `README.md` is a short front page (what the
   project is, quick start, status, links); the authoritative setup, architecture,
