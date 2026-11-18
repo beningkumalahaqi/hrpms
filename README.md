@@ -278,7 +278,8 @@ serving requests that touch the database.
 | T05 | Solution and the four projects | done |
 | T06 | Connection factory and DI wiring | done |
 | T07 | Domain entities | done |
-| T08+ | Application features | pending |
+| T08 | DTOs, requests, common types | done |
+| T09+ | Application features | pending |
 
 The schema from T02 is in place, so `db-init` now actually runs `db/01_schema.sql`
 instead of reporting that it has nothing to do. T03 adds
@@ -306,6 +307,19 @@ T07 adds the six entity classes under `src/EnterpriseHR.Domain/Entities/`, one p
 with property names, order, and CLR types matching the schema columns, plus
 `ProjectStatus` with the four status values the `CK_Projects_Status` constraint accepts.
 The entities are plain classes with no navigation properties; repositories map flat rows.
+
+T08 adds the data-transfer layer the repositories and controllers will bind to:
+`src/EnterpriseHR.Domain/Dtos/` (`EmployeeDto`, `ProjectListItemDto`, `ProjectMemberDto`,
+`ProjectDetailDto`, `DepartmentSummaryDto`, `EmployeeFormOptions`, `SelectOptionDto`),
+`Requests/` (`CreateEmployeeRequest`, `UpdateEmployeeRequest`, `UpdateSalaryRequest`,
+`AssignEmployeeRequest`, `EmployeeFilter`), and `Common/PagedResult<T>`. DTOs are mutable
+classes with a parameterless constructor so Dapper's multi-map callbacks can build them
+column by column; `TotalAllocationOfMembers`, `IsOverBudget`, and `TotalPages` are computed,
+read-only properties. The request types carry `DataAnnotations` whose limits mirror the
+table columns (`EmployeeNumber` 20, `FullName` 255, `Email` 150 + email format,
+`RoleInProject`/`Reason` 100/255, `AllocationPercentage` 1–100, `NewSalary` > 0), so WebApp
+`ModelState` checks and the API's automatic 400s share one set of rules. `EmployeeFilter`
+pages with `Page`/`PageSize` defaulting to 1 and 10.
 
 The design system export in `design-system/` is static reference material at this
 stage. No Razor view or layout uses it yet; that starts when the dashboard screens are
