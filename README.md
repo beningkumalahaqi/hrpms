@@ -280,7 +280,8 @@ serving requests that touch the database.
 | T07 | Domain entities | done |
 | T08 | DTOs, requests, common types | done |
 | T09 | Domain exceptions | done |
-| T10+ | Application features | pending |
+| T10 | Domain interfaces | done |
+| T11+ | Application features | pending |
 
 The schema from T02 is in place, so `db-init` now actually runs `db/01_schema.sql`
 instead of reporting that it has nothing to do. T03 adds
@@ -331,6 +332,16 @@ duplicate employee number/email). Each has a `(string message)` constructor plus
 `(string, Exception)` overload for wrapping `SqlException`. The Domain project still
 references no ASP.NET Core assemblies; the API middleware and WebApp filter will translate
 these types into status codes.
+
+T10 adds the contracts the DataAccess and service implementations must satisfy:
+`src/EnterpriseHR.Domain/Interfaces/` holds `ILookupRepository`, `IEmployeeRepository`,
+`IProjectRepository`, `IReportRepository`, `IEmployeeService`, `IProjectService`, and
+`IReportService` — 28 methods, one interface per file. Every method takes
+`CancellationToken ct = default` as its last parameter, so the async data-access rules hold
+at the contract level; the four single-record lookups return `Task<T?>` so callers decide
+what a missing row means (`NotFoundException`). Repositories speak DTOs and request types,
+never entities. The Domain project still contains no SQL, Dapper, or connection code and no
+implementations — only interfaces.
 
 The design system export in `design-system/` is static reference material at this
 stage. No Razor view or layout uses it yet; that starts when the dashboard screens are
