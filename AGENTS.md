@@ -51,8 +51,10 @@ knowledge in `agents/memory/`. Do not duplicate content across them.
    checked and any test data you cleaned up.
 7. **Update user-facing docs only on real change.** Touch `README.md` / `db/README.md`
    when setup, commands, or project status changed; leave them alone otherwise.
-8. **Finish with memory.** After a task, add an entry to `agents/memory/` and a row to
-   `agents/memory/1index.md` (see below). This is part of "done", not optional polish.
+8. **Finish with memory and status.** After a task, add an entry to `agents/memory/` and a
+   row to `agents/memory/1index.md`. Then update the **Project Status** table in
+   `README.md`: the finished stage must read `done` (and the one-line note beneath the
+   table if the current state changed). This is part of "done", not optional polish.
 
 ## Memory entry format
 

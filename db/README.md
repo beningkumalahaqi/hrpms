@@ -9,7 +9,7 @@ container after it reports healthy.
 | Prefix | Contents | Status |
 | ------ | -------- | ------ |
 | `01_schema.sql` | Database and schema creation | present (T02) |
-| `02_*.sql` | Stored procedures and supporting objects | pending (T03) |
+| `02_sp_GetDepartmentSummary.sql` | `dbo.sp_GetDepartmentSummary` department report | present (T03) |
 | `03_*.sql` | Seed / sample data | pending (T04) |
 
 Rules for these scripts:
@@ -27,3 +27,7 @@ recreate the local volume with `docker compose down -v` before running `db-init`
 
 Expect `db-init` to print `Running /scripts/01_schema.sql` followed by
 `Changed database context to 'EnterpriseHRDB'.` on both the first and any later run.
+
+`02_sp_GetDepartmentSummary.sql` uses `CREATE OR ALTER PROCEDURE`, so re-running it
+replaces the definition instead of failing. Its result-set column aliases are the
+`DepartmentSummaryDto` property names and must stay that way.
