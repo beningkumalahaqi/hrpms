@@ -25,7 +25,8 @@ the log of what each stage added. The authoritative "what is done" summary is th
 | T17 | Project reads: list and QueryMultiple details | done |
 | T18 | Project assignment with workload cap and duplicate protection | done |
 | T19 | Report repository: department summary via stored procedure | done |
-| T20+ | Application features | pending |
+| T20 | Services and dependency-injection registration | done |
+| T21+ | Application features | pending |
 
 ## T01–T04 — Infrastructure and database
 
@@ -78,7 +79,7 @@ T10 added the seven repository and service interfaces — 28 methods, `Cancellat
 ct = default` on every one, `Task<T?>` on the four single-record lookups, and DTO/request
 types (never entities) crossing the repository boundary.
 
-## T11–T19 — Data access
+## T11–T20 — Data access
 
 T11 added `RepositoryBase`: `OpenAsync`, the only transaction runner in the solution, and
 `TranslateSql` for SQL Server errors 2627/2601/547. See
@@ -165,9 +166,20 @@ departments in name order — `FIN`, `HR`, `IT`, `OPS` — including OPS, which 
 employees, so its salary is 0 and its whole budget is still available. Only IT is over
 budget: 77,000,000 in monthly salary against a 70,000,000 budget leaves −7,000,000.
 
+T20 added the three services and registered everything in `AddEnterpriseHrDataAccess`. The
+services are thin on purpose: they trim the text a form can send padded (employee number,
+name, email, assignment role, salary-change reason), clamp `Page`/`PageSize` into range
+before the repository sees them, null-guard every request argument, and delegate. No SQL and
+no business rule lives in a service — the 100% workload cap, the status checks, the salary
+range and the uniqueness guards all stay in the repositories, so the MVC host and the API
+cannot drift apart. `EmployeeService.GetFormOptionsAsync` loads departments, positions and
+managers with three sequential awaits (each lookup opens its own connection, so there is
+nothing to share) and asks for active managers while excluding the employee being edited;
+`ProjectService.GetAssignableEmployeeOptionsAsync` asks for active employees with no
+exclusion. `IDbConnectionFactory` stays a singleton, and all four repositories and three
+services are scoped.
+
 ## Next
 
-T20 onward adds the application features: the service implementations, the API controllers
-with exception-to-status-code middleware, and the Razor screens ported from
-`design-system/`. Repository registration in `AddEnterpriseHrDataAccess` lands with the
-first service that resolves one.
+T21 onward adds the application features: the API controllers with exception-to-status-code
+middleware, and the Razor screens ported from `design-system/`.

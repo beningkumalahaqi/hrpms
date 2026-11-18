@@ -49,14 +49,16 @@ EnterpriseHRSystem.sln
 | Project | Responsibility | Depends on |
 | ------- | -------------- | ---------- |
 | `EnterpriseHR.Domain` | Entities, enums, DTOs, request types, domain validation and calculation rules, exception hierarchy, and the repository/service interfaces. No database or web dependencies. | none |
-| `EnterpriseHR.DataAccess` | Dapper repositories, parameterized SQL, stored-procedure calls, mapping, and transaction handling. Owns the `Microsoft.Data.SqlClient` connection factory and connection-string configuration. | Domain |
+| `EnterpriseHR.DataAccess` | Dapper repositories, services (thin orchestration), parameterized SQL, stored-procedure calls, mapping, transaction handling, and DI registration. Owns the `Microsoft.Data.SqlClient` connection factory and connection-string configuration. | Domain |
 | `EnterpriseHR.WebApp` | ASP.NET Core MVC host. Razor Views, view models, controllers, Tag Helpers, and the design-system layout. Calls DataAccess for all persistence. | Domain, DataAccess |
 | `EnterpriseHR.Api` | ASP.NET Core Web API host. Controller-based JSON endpoints, Swagger/OpenAPI documentation, global exception-handling middleware, DTOs. Calls DataAccess for all persistence. | Domain, DataAccess |
 
-There is no separate services or repository project: orchestration stays in the two
-hosts, and SQL stays in DataAccess. `EnterpriseHR.DataAccess` is the single place where
-SQL is written; neither host opens a `SqlConnection` directly, which is what keeps the
-MVC dashboard and the API consistent as the schema evolves.
+There is no fifth project and no separate services project: the orchestration services live in
+`EnterpriseHR.DataAccess/Services/`, next to the repositories they call, and the two hosts stay
+thin (controllers bind, call a service, render). SQL stays in DataAccess.
+`EnterpriseHR.DataAccess` is the single place where SQL is written; neither host opens a
+`SqlConnection` directly, which is what keeps the MVC dashboard and the API consistent as the
+schema evolves.
 
 ## Domain layer
 
@@ -111,9 +113,10 @@ repository inherits. It exposes:
   survives.
 
 `AddEnterpriseHrDataAccess` (in `ServiceCollectionExtensions.cs`) validates
-`ConnectionStrings:EnterpriseHR` and registers `IDbConnectionFactory` as a singleton. Both
-hosts call it from `Program.cs`. Repositories are not registered there yet: they become
-scoped services when the first service that needs them lands.
+`ConnectionStrings:EnterpriseHR`, registers `IDbConnectionFactory` as a singleton, and
+registers the four repositories and three services as scoped. Both hosts call it from
+`Program.cs`, so either one fails at startup when the connection string is missing, and a
+missing registration surfaces on the first request instead of at startup.
 
 Current repositories: `LookupRepository` (department, position and employee option
 lists), `EmployeeRepository`, which implements `IEmployeeRepository` (paged reads with
@@ -125,9 +128,19 @@ counts, details with every assignment in one batch, and assigning an employee un
 `IsActive` becomes 0, and a transaction that holds the row under `UPDLOCK` refuses the
 change while an active employee still reports to this person, or while they hold an
 assignment on an `Active` project. A salary adjustment changes `Salary`/`PositionId` and
-writes the matching `SalaryHistories` row in the same transaction. All service
-implementations come with the application features — see
-[development-stages.md](development-stages.md).
+writes the matching `SalaryHistories` row in the same transaction.
+
+Current services in `src/EnterpriseHR.DataAccess/Services/`: `EmployeeService`,
+`ProjectService` and `ReportService`, each implementing its Domain interface. They are thin
+orchestration only — null-guard the request, trim the text a form can send padded, clamp
+paging, delegate. No SQL and no business rule lives there: the workload cap, project status
+checks, salary range, uniqueness guards and soft-delete protections all stay in the
+repositories, which is what keeps the MVC host and the API consistent. `EmployeeService`
+normalises the filter into a copy so the caller's `EmployeeFilter` is untouched;
+`GetFormOptionsAsync` fetches departments, positions and managers with three sequential
+awaits and asks the lookup repository for active managers only, excluding the employee being
+edited. `ProjectService.GetAssignableEmployeeOptionsAsync` asks for active employees with no
+exclusion. See [development-stages.md](development-stages.md) for the stage that added them.
 
 ## Frontend and design system
 
