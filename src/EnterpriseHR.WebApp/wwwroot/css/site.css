@@ -471,6 +471,33 @@ small { font-size: var(--text-sm); }
 .module-link { margin-top: var(--space-1); color: var(--color-primary); font-size: var(--text-sm); font-weight: 600; }
 .error-code { color: var(--color-error); font-size: var(--text-sm); font-weight: 600; }
 
+/* ---------------------------------------------------------------------------
+   Employee directory (T28)
+
+   The export's .filter-panel filters live as you type and has no submit row, so
+   the Search/Reset row is a full-width addition below the three fields: it keeps
+   the export's own three-column panel and its responsive collapse untouched.
+   The export ships no checkbox, so .checkbox-field reuses .field label
+   typography and themes the native control with the brand accent.
+   --------------------------------------------------------------------------- */
+
+.filter-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-1); grid-column: 1 / -1; }
+.checkbox-field { display: flex; align-items: center; gap: var(--space-1); min-height: var(--control-height); }
+.checkbox-field input[type="checkbox"] { flex: none; width: 1.125rem; height: 1.125rem; min-height: 0; padding: 0; border: 0; accent-color: var(--color-primary); }
+.checkbox-field label { margin: 0; }
+.button-row > form, .record-actions > form { display: flex; }
+
+/* .button.text already sets the primary colour, so the destructive row action needs the
+   two-class selector to win without !important. The export's .button.danger is a filled
+   button; a dense table row keeps the text shape and takes only the error colour. */
+.button.text.danger-text, .button.secondary.danger-text { color: var(--color-error); }
+
+@media (max-width: 767px) {
+  .filter-actions .button { flex: 1 1 auto; }
+  .record-actions > form { flex: 1 1 auto; }
+  .record-actions > form > .button { width: 100%; }
+}
+
 @media (hover: hover) {
   .module-card:hover { border-color: #a5a3cf; box-shadow: 0 8px 24px rgb(23 32 51 / 8%); }
   .alert .icon-button:hover { color: inherit; background: rgb(23 32 51 / 8%); }

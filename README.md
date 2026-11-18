@@ -87,14 +87,17 @@ steps, and the Apple Silicon caveats — is in
 | T25 | Report endpoint: department summary | done |
 | T26 | API request collection and scenario matrix | done |
 | T27 | WebApp shell: design-system layout, top navigation, alerts, pager, home cards | done |
-| T28+ | Remaining API endpoints and Razor screens | pending |
+| T28 | Employees index: search, department filter, include-inactive, paging | done |
+| T29+ | Remaining employee actions and the project and dashboard screens | pending |
 
 The database, domain layer, data-access foundation, services and the API infrastructure
 (envelope, validation mapping, exception mapping, Swagger) are complete, and MVC plus the API
 serve from one process. The employee, project and report endpoints are live, and the MVC shell
-now uses the HR Workspace design system with top navigation, shared alerts, a pager and a home
-page. What is still missing: the employee write endpoints, the project list, and the employee,
-project and dashboard screens. The API can be exercised end to end with
+uses the HR Workspace design system with top navigation, shared alerts, a pager and a home page.
+The employee directory is the first real screen: it searches by name or number, filters by
+department, includes former staff on request and pages the results. What is still missing: the
+employee write endpoints, the project list, and the employee write forms plus the project and
+dashboard screens. The API can be exercised end to end with
 [`src/EnterpriseHR.Api/requests.http`](src/EnterpriseHR.Api/requests.http), whose scenarios are
 tabulated in [docs/TEST-SCENARIO-API.md](docs/TEST-SCENARIO-API.md).
 Stage-by-stage detail is in [docs/development-stages.md](docs/development-stages.md).
@@ -111,7 +114,7 @@ migration tool, test projects, CI pipelines, and containerization of the .NET ap
 | [docs/architecture.md](docs/architecture.md) | Projects, layer responsibilities, data-access rules, design-system contract, scope. |
 | [docs/database.md](docs/database.md) | Schema, constraints, stored procedure, seed fixtures. |
 | [docs/TEST-SCENARIO-API.md](docs/TEST-SCENARIO-API.md) | API scenario matrix, paired with the runnable `src/EnterpriseHR.Api/requests.http`. |
-| [docs/development-stages.md](docs/development-stages.md) | T01–T27 stage log and what comes next. |
+| [docs/development-stages.md](docs/development-stages.md) | T01–T28 stage log and what comes next. |
 | [db/README.md](db/README.md) | Rules for the numbered SQL init scripts. |
 | [AGENTS.md](AGENTS.md) | Working rules for coding agents, including where each kind of knowledge belongs. |
 

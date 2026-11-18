@@ -10,7 +10,7 @@ would bloat it lives here.
 | [architecture.md](architecture.md) | Project responsibilities, dependency direction, DI wiring, transaction and error-translation rules, and the UI/design-system contract. |
 | [database.md](database.md) | `EnterpriseHRDB` tables, constraints, indexes, `dbo.sp_GetDepartmentSummary`, seed fixtures, and the rules for `db/` scripts. |
 | [TEST-SCENARIO-API.md](TEST-SCENARIO-API.md) | The API scenario matrix: every route, its success path and every failure path with the status to expect. Paired with `src/EnterpriseHR.Api/requests.http`. |
-| [development-stages.md](development-stages.md) | The T01–T27 stage log: what each stage added and what is still pending. |
+| [development-stages.md](development-stages.md) | The T01–T28 stage log: what each stage added and what is still pending. |
 
 Related reference material that does not belong in `docs/`:
 

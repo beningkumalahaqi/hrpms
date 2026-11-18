@@ -34,7 +34,8 @@ the log of what each stage added. The authoritative "what is done" summary is th
 | T25 | Report API endpoint: department summary | done |
 | T26 | API request collection and scenario matrix | done |
 | T27 | WebApp shell: design-system layout, top navigation, alerts, pager, home cards | done |
-| T28+ | Remaining API endpoints and Razor screens | pending |
+| T28 | Employees index: search, department filter, include-inactive, paging | done |
+| T29+ | Remaining employee actions and the project and dashboard screens | pending |
 
 ## T01–T04 — Infrastructure and database
 
@@ -452,8 +453,9 @@ The export's shell is a sidebar with a topbar. The task requires top navigation,
 `_Layout.cshtml` composes the same brand, `.nav-item` (`.is-active` plus `aria-current="page"`)
 and topbar tokens into one sticky `.site-header`, keeps the footer treatment, and adds the skip
 link and icon sprite. The active route is derived from `RouteData`; the four links are
-Tag-Helper routes to `Home`, `Employees`, `Projects` and `Dashboard`. Only Home exists, so the
-other three intentionally answer the branded 404 until their screens land. Below 640px the nav
+Tag-Helper routes to `Home`, `Employees`, `Projects` and `Dashboard`. At T27 only Home existed, so
+the other three intentionally answered the branded 404; T28 adds the Employees screen and leaves
+Projects and Dashboard on that 404 until their stages land. Below 640px the nav
 takes its own row and below 480px the icons drop, which keeps all four labels on one line at
 360px with no horizontal overflow.
 
@@ -483,10 +485,52 @@ page-1-of-1 disabled state. Both probes were reverted. The API request collectio
 after the pipeline change: 63 passed, 0 failed; the seed snapshot was restored to
 `4|10|9|6|7|0`.
 
+## T28 — Employees index screen
+
+T28 adds the first real screen, `EmployeesController.Index` plus `Views/Employees/Index.cshtml`.
+The action builds an `EmployeeFilter` with `PageSize = 10` and `IsActive = includeInactive ? null
+: true`, calls `IEmployeeService.GetPagedAsync` and `GetDepartmentOptionsAsync`, and hands the
+`PagedResult<EmployeeDto>` to `EmployeeIndexViewModel` (`Result`, `Search`, `DepartmentId`,
+`IncludeInactive`, `SelectList Departments`). The screen is a plain GET form, so every filter
+lives in the query string and a filtered list can be bookmarked or reloaded: nothing on this page
+writes. `IsActive` stays a server-side decision, exactly as in `GET /api/employees`; the checkbox
+only widens the list to former staff.
+
+Out-of-range pages are corrected with a redirect rather than rendered. `page=40` of one page,
+`page=-3` and `page=0` all land on the clamped URL (`/Employees`, or the same filters with the
+last real page), so the address bar, the pager and the rows cannot disagree. The redirect keeps
+only non-default values, and writes `includeInactive=true` as a string because a bool in a
+`RouteValueDictionary` would serialize as `True`.
+
+The view reuses the export's components instead of new ones: `.page`/`.page-header`/`.page-actions`
+with the Create-new button, `.filter-panel`/`.field`/`.input-prefix.search-control` for the form,
+`.panel` + `.data-table` + `.badge active|inactive` for the directory, `.mobile-records` +
+`.record-card` below 1024px, `.empty-state` for no results, and `_Pager` in `.panel-footer`.
+Salary is formatted `N0` in the current culture; a null manager renders an em dash plus
+screen-reader-only "No manager"; the Deactivate action is a POST form with the antiforgery token
+and is omitted for an inactive row. Two components the export lacks are extended from its tokens:
+`.checkbox-field` (no checkbox ships, so the native control takes `accent-color: var(--color-primary)`)
+and a full-width `.filter-actions` row (the export filters live as you type and has no submit row).
+`i-search` and `i-plus` were added to the layout's sprite from `design-system.html`.
+
+Edit, Salary, Create and Deactivate are Tag-Helper targets for later stages and answer the branded
+404 today, which is how the rest of the shell behaves.
+
+Verification ran against the live host and seed fixture. Build is 0 warnings, 0 errors. Search
+`E00` returned 8 active employees, `siti` returned 1, department 1 returned 4, and
+`E00 + department 1` returned 4; `siti + department 3` returned 0 with the empty state and no
+pager. `includeInactive=true` returned 10 with E005 Rudi Hartono carrying the Inactive badge and
+no Deactivate action. With `PageSize` temporarily set to 3, the pager reported 3 pages with
+`search`, `departmentId` and `includeInactive` preserved across a page click and `page=4`/`page=9`
+redirected to page 3; `PageSize` was reverted to 10. Hostile query values
+(`<script>alert(1)</script>`, `%`, `_`, `' OR 1=1--`, `siti & co`) were echoed HTML-encoded and
+matched nothing. Chromium at 320/360/390/430/600/820/1024/1440/1920 widths showed no horizontal
+overflow, the table above 1024px and record cards below it. `requests.http` still passes 63/63,
+and the seed snapshot was restored to `4|10|9|6|7|0`.
+
 ## Next
 
-T28 onward adds the remaining controllers — employee create/read/update/delete and the project
-list — and then the employee, project and dashboard screens ported from `design-system/`. Each
-new endpoint should get a group in `requests.http` and a section in
-`docs/TEST-SCENARIO-API.md`; each new screen starts from the existing shell, `.page`,
-`.panel`, `.data-table` and `.field` components.
+T29 onward adds the remaining employee actions (create, edit, salary, deactivate) and the project
+list and detail screens. Each new screen starts from the existing shell, `.page`, `.panel`,
+`.data-table` and `.field`; each new API endpoint gets a group in `requests.http` and a section in
+`docs/TEST-SCENARIO-API.md`.

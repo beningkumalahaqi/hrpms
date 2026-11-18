@@ -1,0 +1,243 @@
+﻿@model EmployeeIndexViewModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Employees";
+
+    var result = Model.Result;
+
+    // Pager links carry the filters that are actually set. An unfiltered list therefore keeps
+    // a bare /Employees?page=2 instead of repeating empty query values.
+    var pagerRouteValues = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    if (!string.IsNullOrWhiteSpace(Model.Search))
+    {
+        pagerRouteValues["search"] = Model.Search;
+    }
+    if (Model.DepartmentId is int departmentId)
+    {
+        pagerRouteValues["departmentId"] = departmentId.ToString(CultureInfo.InvariantCulture);
+    }
+    if (Model.IncludeInactive)
+    {
+        pagerRouteValues["includeInactive"] = "true";
+    }
+
+    string Salary(decimal value) => value.ToString("N0", CultureInfo.CurrentCulture);
+}
+<div class="page">
+    <header class="page-header">
+        <div class="page-heading">
+            <span class="eyebrow">Employees</span>
+            <h1>Employee directory</h1>
+            <p class="page-description">Search by name or employee number, filter by department, and open a record to maintain it.</p>
+        </div>
+        <div class="page-actions">
+            @* Edit, Salary, Create and Deactivate land in later stages. The Tag Helpers already
+               emit their routes, so those targets answer the branded 404 until then. *@
+            <a class="button primary" asp-action="Create">
+                <svg class="od-icon od-icon-control" aria-hidden="true" focusable="false"><use href="#i-plus" /></svg>
+                <span>Create new</span>
+            </a>
+        </div>
+    </header>
+
+    <form class="filter-panel" method="get" asp-action="Index" role="search" aria-label="Employee filters">
+        <div class="field od-field">
+            <label for="search">Search employees</label>
+            <div class="input-prefix search-control">
+                <svg class="od-icon od-icon-control" aria-hidden="true" focusable="false"><use href="#i-search" /></svg>
+                <input id="search" name="search" type="search" value="@Model.Search"
+                       placeholder="Name or employee number" autocomplete="off" aria-describedby="searchHelp" />
+            </div>
+            <small class="field-help" id="searchHelp">Matches the employee name or employee number.</small>
+        </div>
+
+        <div class="field od-field">
+            <label for="departmentId">Department</label>
+            <select id="departmentId" name="departmentId" asp-items="Model.Departments">
+                <option value="">All departments</option>
+            </select>
+        </div>
+
+        <div class="field od-field">
+            @* One label only: it names the checkbox, and the field-help explains what selecting
+               it adds. A separate "Employment status" label would make the control announce
+               both strings and toggle from two places. *@
+            <div class="checkbox-field">
+                @* Razor drops an attribute whose value is null, so this renders checked only
+                   when the list already includes former staff. *@
+                <input id="includeInactive" name="includeInactive" type="checkbox" value="true"
+                       checked="@(Model.IncludeInactive ? "checked" : null)" />
+                <label for="includeInactive">Include inactive employees</label>
+            </div>
+            <small class="field-help">Former staff appear with an Inactive badge.</small>
+        </div>
+
+        <div class="filter-actions">
+            <button class="button primary" type="submit">
+                <svg class="od-icon od-icon-control" aria-hidden="true" focusable="false"><use href="#i-search" /></svg>
+                <span>Search</span>
+            </button>
+            <a class="button secondary" asp-action="Index">Reset</a>
+        </div>
+    </form>
+
+    <section class="panel" aria-labelledby="employeeDirectoryTitle">
+        <div class="panel-header">
+            <div class="panel-heading">
+                <h2 id="employeeDirectoryTitle">Employee records</h2>
+                <p>@(Model.IncludeInactive
+                    ? "Active and former employees, sorted by name."
+                    : "Active employees only, sorted by name.")</p>
+            </div>
+            <span class="data-chip">@result.TotalCount @(result.TotalCount == 1 ? "employee" : "employees")</span>
+        </div>
+
+        @if (result.Items.Count == 0)
+        {
+            <div class="empty-state">
+                <h2>No employees match these filters</h2>
+                <p>Clear the search and department filter, or include former employees, to restore the directory.</p>
+                <a class="button secondary" asp-action="Index">Clear filters</a>
+            </div>
+        }
+        else
+        {
+            <div class="desktop-table table-wrap">
+                <table class="data-table">
+                    <caption class="sr-only">Employee directory</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Number</th>
+                            <th scope="col">Name</th>
+                            <th scope="col">Department</th>
+                            <th scope="col">Position</th>
+                            <th scope="col">Manager</th>
+                            <th scope="col" class="numeric">Salary</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var employee in result.Items)
+                        {
+                            <tr>
+                                <td><span class="mono">@employee.EmployeeNumber</span></td>
+                                <td>
+                                    <span class="cell-primary">@employee.FullName</span>
+                                    <span class="cell-secondary">@employee.Email</span>
+                                </td>
+                                <td>@employee.DepartmentName</td>
+                                <td>@employee.PositionTitle</td>
+                                <td>
+                                    @if (string.IsNullOrEmpty(employee.ManagerName))
+                                    {
+                                        <span class="muted" aria-hidden="true">&mdash;</span>
+                                        <span class="sr-only">No manager</span>
+                                    }
+                                    else
+                                    {
+                                        @employee.ManagerName
+                                    }
+                                </td>
+                                <td class="numeric">@Salary(employee.Salary)</td>
+                                <td>
+                                    @if (employee.IsActive)
+                                    {
+                                        <span class="badge active">
+                                            <svg class="od-icon od-icon-status" aria-hidden="true" focusable="false"><use href="#i-check-circle" /></svg>
+                                            <span>Active</span>
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge inactive">
+                                            <svg class="od-icon od-icon-status" aria-hidden="true" focusable="false"><use href="#i-cancel" /></svg>
+                                            <span>Inactive</span>
+                                        </span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="button-row">
+                                        <a class="button text" asp-action="Edit" asp-route-id="@employee.Id">Edit</a>
+                                        <a class="button text" asp-action="Salary" asp-route-id="@employee.Id">Salary</a>
+                                        @if (employee.IsActive)
+                                        {
+                                            @* A state change, so it is a POST with the tag helper's
+                                               antiforgery token rather than a link. *@
+                                            <form method="post" asp-action="Deactivate" asp-route-id="@employee.Id">
+                                                <button class="button text danger-text" type="submit">Deactivate</button>
+                                            </form>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @* Below 1024px the export swaps the table for one record card per row. Same data,
+               same actions, no horizontal scrolling. *@
+            <div class="mobile-records">
+                @foreach (var employee in result.Items)
+                {
+                    <article class="record-card">
+                        <div class="record-header">
+                            <div class="record-title">
+                                <strong>@employee.FullName</strong>
+                                <span class="mono">@employee.EmployeeNumber</span>
+                            </div>
+                            @if (employee.IsActive)
+                            {
+                                <span class="badge active">
+                                    <svg class="od-icon od-icon-status" aria-hidden="true" focusable="false"><use href="#i-check-circle" /></svg>
+                                    <span>Active</span>
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge inactive">
+                                    <svg class="od-icon od-icon-status" aria-hidden="true" focusable="false"><use href="#i-cancel" /></svg>
+                                    <span>Inactive</span>
+                                </span>
+                            }
+                        </div>
+                        <dl class="record-details">
+                            <div><dt>Department</dt><dd>@employee.DepartmentName</dd></div>
+                            <div><dt>Position</dt><dd>@employee.PositionTitle</dd></div>
+                            <div>
+                                <dt>Manager</dt>
+                                <dd>
+                                    @if (string.IsNullOrEmpty(employee.ManagerName))
+                                    {
+                                        <span class="muted" aria-hidden="true">&mdash;</span>
+                                        <span class="sr-only">No manager</span>
+                                    }
+                                    else
+                                    {
+                                        @employee.ManagerName
+                                    }
+                                </dd>
+                            </div>
+                            <div><dt>Monthly salary</dt><dd class="numeric">@Salary(employee.Salary)</dd></div>
+                        </dl>
+                        <div class="record-actions">
+                            <a class="button secondary" asp-action="Edit" asp-route-id="@employee.Id">Edit</a>
+                            <a class="button secondary" asp-action="Salary" asp-route-id="@employee.Id">Salary</a>
+                            @if (employee.IsActive)
+                            {
+                                <form method="post" asp-action="Deactivate" asp-route-id="@employee.Id">
+                                    <button class="button secondary danger-text" type="submit">Deactivate</button>
+                                </form>
+                            }
+                        </div>
+                    </article>
+                }
+            </div>
+
+            <div class="panel-footer">
+                <partial name="_Pager" model="(result.Page, result.TotalPages, (IDictionary<string, string>)pagerRouteValues)" />
+            </div>
+        }
+    </section>
+</div>

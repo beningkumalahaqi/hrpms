@@ -330,13 +330,14 @@ Porting rules for the MVC screens:
 | `Views/Shared/_Alerts.cshtml` | `TempData["Success"]`, `["Warning"]` and `["Error"]` as inline alerts with `role="status"`/`role="alert"` and a dismiss control. Rendered by the layout above `RenderBody()`. |
 | `Views/Shared/_Pager.cshtml` | The design-system `.pagination` markup, built from `(Page, TotalPages, RouteValues)`. Links keep the current query string and override only `page`. |
 | `Views/Home/Index.cshtml` | Page header plus one card per module. |
+| `Views/Employees/Index.cshtml` | The employee directory: GET filter panel (search, department, include-inactive, Search/Reset), `.data-table` above 1024px, record cards below, pager in the panel footer. The Search/Reset row and `.checkbox-field` are the only additions, and they extend `.filter-panel` and `.field` from the export's tokens. |
 | `Views/Shared/Error.cshtml` | The design-system error state for `HomeController.Error`, reached by `UseExceptionHandler` and by status-code re-execution; the action puts the original status back on the response. |
 
 Bootstrap is not referenced by the layout. `wwwroot/lib/bootstrap` and the template
-`Views/Shared/_Layout.cshtml.css` still exist on disk but nothing links them. The employee,
-project and dashboard screens are not ported yet, so those nav links answer the branded 404
-until their stages land. New screens start from `.page`, `.page-header`, `.panel`,
-`.data-table`, `.field` and the `.button` variants instead of new CSS.
+`Views/Shared/_Layout.cshtml.css` still exist on disk but nothing links them. Only the Home and
+Employees screens exist, so the Projects and Dashboard nav links answer the branded 404 until
+their stages land. New screens start from `.page`, `.page-header`, `.panel`, `.data-table`,
+`.field` and the `.button` variants instead of new CSS.
 
 ## Scope
 
