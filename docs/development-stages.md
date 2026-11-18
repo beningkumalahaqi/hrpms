@@ -26,7 +26,8 @@ the log of what each stage added. The authoritative "what is done" summary is th
 | T18 | Project assignment with workload cap and duplicate protection | done |
 | T19 | Report repository: department summary via stored procedure | done |
 | T20 | Services and dependency-injection registration | done |
-| T21+ | Application features | pending |
+| T21 | API bootstrap, response envelope, validation, Swagger | done |
+| T22+ | API endpoints and exception middleware | pending |
 
 ## T01–T04 — Infrastructure and database
 
@@ -179,7 +180,25 @@ nothing to share) and asks for active managers while excluding the employee bein
 exclusion. `IDbConnectionFactory` stays a singleton, and all four repositories and three
 services are scoped.
 
+T21 gave the API its shape before any endpoint exists. `ApiResponse<T>` is the one envelope
+every response uses, `ApiControllerBase` carries the `[ApiController]` attribute, the
+`api/[controller]` route and the `OkResponse`/`CreatedResponse` helpers, and
+`InvalidModelStateResponseFactory` replaces the default `ProblemDetails` body with the same
+envelope, so a rejected request looks like a successful one apart from `success` and
+`message`. Serialization is camelCase, pinned explicitly; the validation dictionary is keyed
+by the camelCase property path the client sent (`reason`, `body.name`), with non-property keys
+such as `body` and `$.name` passed through untouched. Swagger is titled **EnterpriseHR API
+v1** and is served in Development only, so Production answers 404 at `/swagger`.
+
+T21 also fixed a latent Domain bug it tripped over: `[Range(typeof(decimal), ...)]` parses its
+string limits with the current culture, so on a locale whose decimal separator is `,`
+(`en-ID`, the machine this was verified on) `"0.01"` parsed as 1 and the max limit threw
+`ArgumentException` during validation — a 500 on every create/update employee and salary
+request in both hosts. Both attributes now set `ParseLimitsInInvariantCulture = true`; the
+bounds themselves are unchanged.
+
 ## Next
 
-T21 onward adds the application features: the API controllers with exception-to-status-code
-middleware, and the Razor screens ported from `design-system/`.
+T22 onward adds the endpoints themselves and the exception-to-status-code middleware: the
+employee, project, assignment and report controllers, and the Razor screens ported from
+`design-system/`.

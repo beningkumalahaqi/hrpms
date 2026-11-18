@@ -25,7 +25,9 @@ public class CreateEmployeeRequest
 
     public int? ManagerId { get; set; }
 
-    [Range(typeof(decimal), "0", "9999999999999999.99")]
+    // ParseLimitsInInvariantCulture: see UpdateSalaryRequest.NewSalary. Without it the
+    // decimal limits are parsed with the request's culture and validation itself throws.
+    [Range(typeof(decimal), "0", "9999999999999999.99", ParseLimitsInInvariantCulture = true)]
     public decimal Salary { get; set; }
 
     public DateTime JoinDate { get; set; }

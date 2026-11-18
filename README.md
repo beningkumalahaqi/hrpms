@@ -67,7 +67,8 @@ steps, and the Apple Silicon caveats — is in
 | T05–T06 | Solution and four projects, connection factory and DI wiring | done |
 | T07–T10 | Domain entities, DTOs/requests, exceptions, interfaces | done |
 | T11–T20 | Repository base, lookups, employee CRUD, salary history, project reads and assignments, department report, services and DI | done |
-| T21+ | Application features (API controllers, Razor screens) | pending |
+| T21 | API bootstrap, response envelope, validation, Swagger | done |
+| T22+ | API endpoints, exception middleware, Razor screens | pending |
 
 The database, domain layer and data-access foundation are complete. The hosts are still
 MVC/API templates: no API controllers, no service implementations, and no Razor screen
@@ -85,7 +86,7 @@ migration tool, test projects, CI pipelines, and containerization of the .NET ap
 | [docs/getting-started.md](docs/getting-started.md) | Prerequisites, local setup, configuration, running the hosts, troubleshooting. |
 | [docs/architecture.md](docs/architecture.md) | Projects, layer responsibilities, data-access rules, design-system contract, scope. |
 | [docs/database.md](docs/database.md) | Schema, constraints, stored procedure, seed fixtures. |
-| [docs/development-stages.md](docs/development-stages.md) | T01–T20 stage log and what comes next. |
+| [docs/development-stages.md](docs/development-stages.md) | T01–T21 stage log and what comes next. |
 | [db/README.md](db/README.md) | Rules for the numbered SQL init scripts. |
 | [AGENTS.md](AGENTS.md) | Working rules for coding agents, including where each kind of knowledge belongs. |
 

@@ -142,6 +142,34 @@ awaits and asks the lookup repository for active managers only, excluding the em
 edited. `ProjectService.GetAssignableEmployeeOptionsAsync` asks for active employees with no
 exclusion. See [development-stages.md](development-stages.md) for the stage that added them.
 
+## API conventions
+
+The API answers with one envelope, success or failure:
+
+```json
+{ "success": true, "message": "OK", "data": { } }
+```
+
+`ApiResponse<T>` in `src/EnterpriseHR.Api/Models/ApiResponse.cs` builds it via
+`Ok(data, message = "OK")` and `Fail(message, data = default)`. Controllers derive from
+`ApiControllerBase`, which carries `[ApiController]` and the `api/[controller]` route template
+plus the `OkResponse<T>` and `CreatedResponse<T>` helpers, so the shape cannot drift per
+endpoint. Serialization is camelCase, pinned explicitly in `Program.cs` rather than inherited.
+
+| Situation | Status |
+| --------- | ------ |
+| Read / update OK | 200 |
+| Assignment created | 201 (with a `Location` header) |
+| Model validation failed, `BusinessRuleException` | 400 |
+| `NotFoundException` | 404 |
+| `ConflictException` | 409 |
+| Unhandled | 500, generic message, no stack trace |
+
+A model-binding failure returns 400 with the same envelope, `message` = `"Validation failed."`
+and `data` = a field-to-messages dictionary keyed by the camelCase path the client sent
+(`reason`, `body.name`). Swagger UI is served at `/swagger` in Development only; the document
+is titled **EnterpriseHR API v1**.
+
 ## Frontend and design system
 
 The MVC dashboard does not use Bootstrap. The UI follows the exported **HR Workspace**
