@@ -35,7 +35,8 @@ the log of what each stage added. The authoritative "what is done" summary is th
 | T26 | API request collection and scenario matrix | done |
 | T27 | WebApp shell: design-system layout, top navigation, alerts, pager, home cards | done |
 | T28 | Employees index: search, department filter, include-inactive, paging | done |
-| T29+ | Remaining employee actions and the project and dashboard screens | pending |
+| T29 | Employees create and edit forms with dynamic department/position/manager selects | done |
+| T30+ | Remaining employee actions and the project and dashboard screens | pending |
 
 ## T01–T04 — Infrastructure and database
 
@@ -528,9 +529,74 @@ matched nothing. Chromium at 320/360/390/430/600/820/1024/1440/1920 widths showe
 overflow, the table above 1024px and record cards below it. `requests.http` still passes 63/63,
 and the seed snapshot was restored to `4|10|9|6|7|0`.
 
+## T29 - Employee create and edit forms
+
+T29 adds the two write screens the directory already linked to: `EmployeesController.Create`
+and `EmployeesController.Edit`, with `EmployeeCreateViewModel` and `EmployeeEditViewModel`.
+
+Both view models compose the request contract instead of inheriting it. That is a deliberate
+departure from "one model, one contract": an unfilled `<select>` posts an empty string, which
+binds to `int` as *"The value '' is invalid."* - a message that names no correction. Making the
+field `int?` with a named `[Required]` turns the same submit into *"Select a department."* The
+rest of the attributes mirror `CreateEmployeeRequest` / `UpdateEmployeeRequest` one for one, and
+the data layer stays the authority for everything a form cannot know: unique number and email,
+the position's salary range, an unknown department, an inactive manager. The option lists
+(`Departments`, `Positions`, `Managers`) are display data, never posted back; the controller
+rebuilds them from `GetFormOptionsAsync` on every render, including after a rejected POST, so a
+stale or tampered list cannot reach the binding layer.
+
+GET fills the selects and defaults the join date to today. POST checks `ModelState`, maps to the
+request contract, calls `CreateAsync` / `UpdateAsync`, and catches `BusinessRuleException` and
+`ConflictException` into `ModelState.AddModelError(string.Empty, ...)`. Those two exception types
+describe something the person at the form can correct, so the message becomes a form-level
+`error-summary` and the form re-renders with every submitted value and every select intact.
+Success sets `TempData["Success"]` and redirects to the directory (POST/Redirect/GET), so a
+reload cannot post the record twice; `_Alerts` renders the message.
+
+Edit is narrower than Create on purpose. Assumption A3 says `UpdateEmployeeSql` writes only the
+name, email, department, manager and join date, so the page has no position or salary control:
+it shows both as read-only text and links to the salary page. The manager list is built with
+`GetFormOptionsAsync(excludeEmployeeId: id)`, so nobody can be made their own manager, and only
+active employees appear. An unknown id answers `NotFound()` on GET and on POST, and a rejected
+POST re-reads the number, position and salary from the stored row rather than trusting the body.
+Both POST actions carry `[ValidateAntiForgeryToken]`; a POST without the token answers 400 and
+writes nothing.
+
+The views add no new components. They use `.panel`, `.form-grid` (two columns, one below
+767px), `.field`, `.input-prefix` for the IDR amount, `.error-summary` for
+`asp-validation-summary="ModelOnly"`, `.field-error` for `asp-validation-for`, and `.button`
+primary/secondary in a `.panel-footer`. `site.css` gains one labelled `Employee forms (T29)`
+section with four rules: `.form-actions` (the export only draws its submit row inside
+`.dialog-actions`), `.field.full`, the error border for jQuery unobtrusive validation (it marks
+controls with `.input-validation-error`, while the design system keys off `aria-invalid`, which
+only the server-rendered pass sets), and the marker/indent reset that stops a one-line
+`.error-summary` from rendering behind a stray bullet.
+
+Verification ran against the live host, the seed fixture and a real browser. Build is 0
+warnings, 0 errors. GET /Employees/Create lists 4 departments, 7 positions and 9 active managers
+with `-- Select --` and `-- No manager --` first and nothing selected. Client-side validation
+blocks an empty submit and shows all six messages. A valid create (`E014`, department 1, position
+3, manager E001, 26,000,000, 2024-05-06) answered 302 to `/Employees` with the success alert and
+the new active row; the database held `PositionId=3, ManagerId=1, Salary=26000000.00,
+JoinDate=2024-05-06, IsActive=1`. A create with no manager posted `ManagerId=NULL`. A duplicate
+email, a duplicate employee number, an out-of-range salary (`Salary must be between 6.000.000 and
+12.000.000 for this position.`), an unknown department, an unknown position and an inactive
+manager each re-rendered the form with the message in the summary and every input preserved;
+the employee and salary-history counts were unchanged after all six. GET /Employees/Edit/6 lists
+9 managers and does not include E004; it has no position or salary control, shows both read-only
+(`Senior Developer`, `12.000.000`) and links `/Employees/Salary/6`. Editing E004 to department 4
+and manager E003 answered 302 and stored exactly that, with salary and position unchanged.
+Self-as-manager, an inactive manager and a duplicate email were each rejected as a form error.
+`Edit/999` answers 404 on GET and on POST; a POST without the antiforgery token answers 400. The
+read-only and validation states were checked in Chromium at 320/360/390/430/600/820/1024/1440/1920
+with no horizontal overflow, one column below 767px and two above it. The shells nav matched
+only `Index`, so the Employees item lost its active state on the new sub-screens; `_Layout.cshtml`
+now matches by controller, which keeps Home active on `/` only. `requests.http` still
+passes 63/63 and the seed snapshot was restored to `4|10|9|6|7|0`.
+
 ## Next
 
-T29 onward adds the remaining employee actions (create, edit, salary, deactivate) and the project
-list and detail screens. Each new screen starts from the existing shell, `.page`, `.panel`,
-`.data-table` and `.field`; each new API endpoint gets a group in `requests.http` and a section in
-`docs/TEST-SCENARIO-API.md`.
+T30 onward adds the salary adjustment and deactivation screens, then the project list and detail
+screens. Each new screen starts from the existing shell, `.page`, `.panel`, `.data-table`,
+`.field` and now `.form-grid`; each new API endpoint gets a group in `requests.http` and a section
+in `docs/TEST-SCENARIO-API.md`.

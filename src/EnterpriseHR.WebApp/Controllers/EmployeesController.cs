@@ -1,4 +1,6 @@
+using EnterpriseHR.Domain.Common;
 using EnterpriseHR.Domain.Dtos;
+using EnterpriseHR.Domain.Exceptions;
 using EnterpriseHR.Domain.Interfaces;
 using EnterpriseHR.Domain.Requests;
 using EnterpriseHR.WebApp.Models;
@@ -8,8 +10,8 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 namespace EnterpriseHR.WebApp.Controllers;
 
 /// <summary>
-/// The employee directory screen. It lists, searches, filters and pages with the same
-/// <see cref="IEmployeeService"/> the API uses, so the screen and <c>GET /api/employees</c>
+/// The employee directory screens. They list, search, filter and page with the same
+/// <see cref="IEmployeeService"/> the API uses, so the screens and <c>/api/employees</c>
 /// cannot drift apart.
 /// </summary>
 public class EmployeesController : Controller
@@ -83,6 +85,214 @@ public class EmployeesController : Controller
                 nameof(SelectOptionDto.Text),
                 departmentId),
         });
+    }
+
+    /// <summary>GET /Employees/Create: an empty form with the three selects loaded.</summary>
+    [HttpGet]
+    public async Task<IActionResult> Create(CancellationToken ct = default)
+    {
+        var options = await _employees.GetFormOptionsAsync(excludeEmployeeId: null, ct);
+
+        return View(new EmployeeCreateViewModel
+        {
+            // A new record starts today, which is what most of these forms are used for.
+            JoinDate = DateTime.Today,
+            Departments = ToSelectList(options.Departments, null),
+            Positions = ToSelectList(options.Positions, null),
+            Managers = ToSelectList(options.Managers, null),
+        });
+    }
+
+    /// <summary>POST /Employees/Create</summary>
+    /// <remarks>
+    /// Success redirects to the directory (POST/Redirect/GET), so a reload cannot post the record
+    /// twice. A rejected write re-renders the form with the submitted values intact and the
+    /// selects rebuilt from the database.
+    /// </remarks>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create(EmployeeCreateViewModel model, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+
+        if (ModelState.IsValid)
+        {
+            // A manager cannot be the new record: it has no id yet, so there is nobody to
+            // exclude and no ordering problem.
+            var request = new CreateEmployeeRequest
+            {
+                EmployeeNumber = model.EmployeeNumber,
+                FullName = model.FullName,
+                Email = model.Email,
+                DepartmentId = model.DepartmentId!.Value,
+                PositionId = model.PositionId!.Value,
+                ManagerId = model.ManagerId,
+                Salary = model.Salary!.Value,
+                JoinDate = model.JoinDate!.Value,
+            };
+
+            // The repository owns the rules a form cannot check: a duplicate number or email,
+            // a salary outside the position's range, an unknown department, an inactive manager.
+            // Both exception types describe something the person at the form can correct, so the
+            // message becomes a form-level error rather than an error page.
+            try
+            {
+                await _employees.CreateAsync(request, ct);
+            }
+            catch (BusinessRuleException ex)
+            {
+                ModelState.AddModelError(string.Empty, ex.Message);
+            }
+            catch (ConflictException ex)
+            {
+                ModelState.AddModelError(string.Empty, ex.Message);
+            }
+
+            if (ModelState.IsValid)
+            {
+                TempData["Success"] =
+                    $"Employee {request.EmployeeNumber} - {request.FullName} was created.";
+
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        await PopulateOptionsAsync(model, excludeEmployeeId: null, ct);
+
+        return View(model);
+    }
+
+    /// <summary>GET /Employees/Edit/{id}</summary>
+    [HttpGet]
+    public async Task<IActionResult> Edit(int id, CancellationToken ct = default)
+    {
+        var employee = await _employees.GetByIdAsync(id, ct);
+
+        if (employee is null)
+        {
+            return NotFound();
+        }
+
+        var options = await _employees.GetFormOptionsAsync(id, ct);
+
+        return View(new EmployeeEditViewModel
+        {
+            Id = employee.Id,
+            EmployeeNumber = employee.EmployeeNumber,
+            PositionTitle = employee.PositionTitle,
+            Salary = employee.Salary,
+            IsActive = employee.IsActive,
+            FullName = employee.FullName,
+            Email = employee.Email,
+            DepartmentId = employee.DepartmentId,
+            ManagerId = employee.ManagerId,
+            JoinDate = employee.JoinDate,
+            Departments = ToSelectList(options.Departments, employee.DepartmentId),
+            Managers = ToSelectList(options.Managers, employee.ManagerId),
+        });
+    }
+
+    /// <summary>POST /Employees/Edit/{id}</summary>
+    /// <remarks>
+    /// Only the fields <c>UpdateEmployeeSql</c> writes are posted: the number, position and salary
+    /// are read-only on this screen (A3). An unknown id answers 404 both on GET and on POST, so a
+    /// deleted record cannot be resurrected by replaying a form.
+    /// </remarks>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(
+        int id,
+        EmployeeEditViewModel model,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+
+        var employee = await _employees.GetByIdAsync(id, ct);
+
+        if (employee is null)
+        {
+            return NotFound();
+        }
+
+        if (ModelState.IsValid)
+        {
+            var request = new UpdateEmployeeRequest
+            {
+                FullName = model.FullName,
+                Email = model.Email,
+                DepartmentId = model.DepartmentId!.Value,
+                ManagerId = model.ManagerId,
+                JoinDate = model.JoinDate!.Value,
+            };
+
+            try
+            {
+                await _employees.UpdateAsync(id, request, ct);
+            }
+            catch (BusinessRuleException ex)
+            {
+                ModelState.AddModelError(string.Empty, ex.Message);
+            }
+            catch (ConflictException ex)
+            {
+                ModelState.AddModelError(string.Empty, ex.Message);
+            }
+
+            if (ModelState.IsValid)
+            {
+                TempData["Success"] = $"Employee {employee.EmployeeNumber} - {request.FullName} was updated.";
+
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        // Never take the read-only values from the body: re-read them from the stored row so the
+        // summary the page shows cannot be rewritten by a crafted POST.
+        var options = await _employees.GetFormOptionsAsync(id, ct);
+
+        model.EmployeeNumber = employee.EmployeeNumber;
+        model.PositionTitle = employee.PositionTitle;
+        model.Salary = employee.Salary;
+        model.IsActive = employee.IsActive;
+        // The submitted selection is kept here, so the person sees what they picked next to the
+        // message that explains why it was rejected.
+        model.Departments = ToSelectList(options.Departments, model.DepartmentId);
+        model.Managers = ToSelectList(options.Managers, model.ManagerId);
+
+        return View(model);
+    }
+
+    /// <summary>
+    /// Rebuilds the create form's selects from the database, keeping the submitted selection.
+    /// Called on every render of an invalid POST: the option lists are display data, so they are
+    /// never trusted from the body.
+    /// </summary>
+    private async Task PopulateOptionsAsync(
+        EmployeeCreateViewModel model,
+        int? excludeEmployeeId,
+        CancellationToken ct)
+    {
+        var options = await _employees.GetFormOptionsAsync(excludeEmployeeId, ct);
+
+        model.Departments = ToSelectList(options.Departments, model.DepartmentId);
+        model.Positions = ToSelectList(options.Positions, model.PositionId);
+        model.Managers = ToSelectList(options.Managers, model.ManagerId);
+    }
+
+    /// <summary>
+    /// The lookup rows as select items for the given selection. Value and Text come from
+    /// <see cref="SelectOptionDto"/> by name: without them a positional record's ToString()
+    /// would become both the value and the label.
+    /// </summary>
+    private static SelectList ToSelectList(
+        IReadOnlyList<SelectOptionDto> options,
+        int? selectedValue)
+    {
+        return new SelectList(
+            options,
+            nameof(SelectOptionDto.Value),
+            nameof(SelectOptionDto.Text),
+            selectedValue);
     }
 
     /// <summary>

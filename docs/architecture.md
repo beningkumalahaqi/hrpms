@@ -331,6 +331,8 @@ Porting rules for the MVC screens:
 | `Views/Shared/_Pager.cshtml` | The design-system `.pagination` markup, built from `(Page, TotalPages, RouteValues)`. Links keep the current query string and override only `page`. |
 | `Views/Home/Index.cshtml` | Page header plus one card per module. |
 | `Views/Employees/Index.cshtml` | The employee directory: GET filter panel (search, department, include-inactive, Search/Reset), `.data-table` above 1024px, record cards below, pager in the panel footer. The Search/Reset row and `.checkbox-field` are the only additions, and they extend `.filter-panel` and `.field` from the export's tokens. |
+| `Views/Employees/Create.cshtml` | The create form: `.panel` + `.form-grid` + `.field`, the three `asp-items` selects with a `-- Select --` / `-- No manager --` placeholder, ModelOnly summary, per-field `asp-validation-for`, and `_ValidationScriptsPartial`. |
+| `Views/Employees/Edit.cshtml` | The edit form: only the `UpdateEmployeeRequest` fields are controls; the number, position and salary are read-only text and the salary page is linked from the grid. Same validation wiring as Create. |
 | `Views/Shared/Error.cshtml` | The design-system error state for `HomeController.Error`, reached by `UseExceptionHandler` and by status-code re-execution; the action puts the original status back on the response. |
 
 Bootstrap is not referenced by the layout. `wwwroot/lib/bootstrap` and the template

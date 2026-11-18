@@ -1,0 +1,129 @@
+﻿@model EmployeeEditViewModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Edit employee";
+
+    string? Invalid(string field) =>
+        ViewData.ModelState.TryGetValue(field, out var entry) && entry.Errors.Count > 0
+            ? "true"
+            : null;
+
+    // A3: the salary and position are read-only here and only change through the salary page.
+    string Salary(decimal value) => value.ToString("N0", CultureInfo.CurrentCulture);
+}
+<div class="page">
+    <header class="page-header">
+        <div class="page-heading">
+            <span class="eyebrow">Employees</span>
+            <h1>Edit employee</h1>
+            <p class="page-description">Maintain the workplace details of @Model.EmployeeNumber.</p>
+        </div>
+        <div class="page-actions">
+            <a class="button secondary" asp-action="Index">Back to directory</a>
+        </div>
+    </header>
+
+    <form method="post" asp-action="Edit" asp-route-id="@Model.Id">
+        <section class="panel" aria-labelledby="editEmployeeTitle">
+            <div class="panel-header">
+                <div class="panel-heading">
+                    <span class="eyebrow">Employee record</span>
+                    <h2 id="editEmployeeTitle">@Model.FullName</h2>
+                    <p>@Model.EmployeeNumber - @Model.PositionTitle</p>
+                </div>
+                @if (Model.IsActive)
+                {
+                    <span class="badge active">
+                        <svg class="od-icon od-icon-status" aria-hidden="true" focusable="false"><use href="#i-check-circle" /></svg>
+                        <span>Active</span>
+                    </span>
+                }
+                else
+                {
+                    <span class="badge inactive">
+                        <svg class="od-icon od-icon-status" aria-hidden="true" focusable="false"><use href="#i-cancel" /></svg>
+                        <span>Inactive</span>
+                    </span>
+                }
+            </div>
+
+            <div class="panel-body">
+                <div asp-validation-summary="ModelOnly" class="error-summary" role="alert" tabindex="-1"></div>
+
+                <div class="form-grid">
+                    <div class="field od-field">
+                        <label asp-for="FullName">Full name <span aria-hidden="true">*</span></label>
+                        <input asp-for="FullName" type="text" autocomplete="name"
+                               aria-invalid="@Invalid(nameof(Model.FullName))" />
+                        <span asp-validation-for="FullName" class="field-error"></span>
+                    </div>
+
+                    <div class="field od-field">
+                        <label asp-for="Email">Email <span aria-hidden="true">*</span></label>
+                        <input asp-for="Email" type="email" autocomplete="email"
+                               aria-invalid="@Invalid(nameof(Model.Email))" />
+                        <span asp-validation-for="Email" class="field-error"></span>
+                    </div>
+
+                    <div class="field od-field">
+                        <label asp-for="JoinDate">Join date <span aria-hidden="true">*</span></label>
+                        <input asp-for="JoinDate" type="date"
+                               aria-invalid="@Invalid(nameof(Model.JoinDate))" aria-describedby="joinDateHelp" />
+                        <small class="field-help" id="joinDateHelp">Accepts a typed date as well as the picker, in day/month/year order.</small>
+                        <span asp-validation-for="JoinDate" class="field-error"></span>
+                    </div>
+
+                    <div class="field od-field">
+                        <label asp-for="DepartmentId">Department <span aria-hidden="true">*</span></label>
+                        <select asp-for="DepartmentId" asp-items="Model.Departments"
+                                aria-invalid="@Invalid(nameof(Model.DepartmentId))">
+                            <option value="">-- Select --</option>
+                        </select>
+                        <span asp-validation-for="DepartmentId" class="field-error"></span>
+                    </div>
+
+                    <div class="field od-field">
+                        <label asp-for="ManagerId">Manager</label>
+                        <select asp-for="ManagerId" asp-items="Model.Managers"
+                                aria-invalid="@Invalid(nameof(Model.ManagerId))" aria-describedby="managerHelp">
+                            <option value="">-- No manager --</option>
+                        </select>
+                        <small class="field-help" id="managerHelp">Optional. This employee is not listed, and neither are former staff.</small>
+                        <span asp-validation-for="ManagerId" class="field-error"></span>
+                    </div>
+
+                    <div class="field od-field">
+                        <label for="positionTitle">Position</label>
+                        <input id="positionTitle" type="text" value="@Model.PositionTitle" readonly />
+                        <small class="field-help">Changes go through the salary adjustment.</small>
+                    </div>
+
+                    <div class="field od-field">
+                        <label for="salaryAmount">Monthly salary</label>
+                        <input id="salaryAmount" type="text" value="@Salary(Model.Salary)" readonly />
+                        <small class="field-help">Read-only here. Use Adjust salary to change the amount or the position.</small>
+                    </div>
+
+                    @* A3: position and salary are not editable on this form, so the only way to
+                       change them is the dedicated page. The link opens the record's id. *@
+                    <div class="field od-field full">
+                        <a class="button secondary" asp-action="Salary" asp-route-id="@Model.Id">
+                            <span>Adjust salary and position</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-footer">
+                <div class="form-actions">
+                    <a class="button secondary" asp-action="Index">Cancel</a>
+                    <button class="button primary" type="submit">Save changes</button>
+                </div>
+            </div>
+        </section>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -498,6 +498,38 @@ small { font-size: var(--text-sm); }
   .record-actions > form > .button { width: 100%; }
 }
 
+/* ---------------------------------------------------------------------------
+   Employee forms (T29)
+
+   The create and edit screens reuse .form-grid, .field, .panel and .button as
+   the export ships them. Two rules are additions: the submit row, which the
+   export only draws inside a .dialog-actions footer, and the full-width field
+   that carries the link to the salary page.
+   --------------------------------------------------------------------------- */
+
+.form-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-1); }
+.field.full { grid-column: 1 / -1; }
+
+/* jQuery unobtrusive validation marks a failed control with
+   .input-validation-error, while the design system keys the error border off
+   [aria-invalid="true"], which only the server-rendered pass can set. These two
+   selectors give the client-side pass the same border, including the salary
+   field whose input sits inside .input-prefix. */
+.field .input-validation-error { border-color: var(--color-error); }
+.field:has(.input-validation-error) .input-prefix,
+.field:has(.input-validation-error) .input-suffix { border-color: var(--color-error); }
+
+/* The export pairs .error-summary with a <strong> heading over a list of field
+   links. The MVC ModelOnly summary renders only a <ul>, so a one-line rule
+   message would sit behind a stray bullet. The box, colour, role and padding
+   stay the design system's; only the list marker and indent are dropped. */
+.error-summary ul { padding-left: 0; list-style: none; }
+.error-summary li + li { margin-top: var(--space-1); }
+
+@media (max-width: 767px) {
+  .form-actions .button { flex: 1 1 8rem; }
+}
+
 @media (hover: hover) {
   .module-card:hover { border-color: #a5a3cf; box-shadow: 0 8px 24px rgb(23 32 51 / 8%); }
   .alert .icon-button:hover { color: inherit; background: rgb(23 32 51 / 8%); }

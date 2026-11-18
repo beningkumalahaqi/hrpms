@@ -2,14 +2,17 @@
     var routeController = ViewContext.RouteData.Values["controller"] as string;
     var routeAction = ViewContext.RouteData.Values["action"] as string;
 
-    bool IsCurrent(string controller, string action) =>
+    // Matching by controller alone keeps the section highlighted on its sub-screens: the
+    // Employees nav must stay current on /Employees/Create and /Employees/Edit, not only on
+    // /Employees. An action still narrows it where a controller serves several sections.
+    bool IsCurrent(string controller, string? action = null) =>
         string.Equals(routeController, controller, StringComparison.OrdinalIgnoreCase)
-        && string.Equals(routeAction, action, StringComparison.OrdinalIgnoreCase);
+        && (action is null || string.Equals(routeAction, action, StringComparison.OrdinalIgnoreCase));
 
     var homeActive = IsCurrent("Home", "Index");
-    var employeesActive = IsCurrent("Employees", "Index");
-    var projectsActive = IsCurrent("Projects", "Index");
-    var dashboardActive = IsCurrent("Dashboard", "Index");
+    var employeesActive = IsCurrent("Employees");
+    var projectsActive = IsCurrent("Projects");
+    var dashboardActive = IsCurrent("Dashboard");
 }
 <!DOCTYPE html>
 <html lang="en">

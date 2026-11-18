@@ -88,7 +88,8 @@ steps, and the Apple Silicon caveats — is in
 | T26 | API request collection and scenario matrix | done |
 | T27 | WebApp shell: design-system layout, top navigation, alerts, pager, home cards | done |
 | T28 | Employees index: search, department filter, include-inactive, paging | done |
-| T29+ | Remaining employee actions and the project and dashboard screens | pending |
+| T29 | Employees create and edit forms with dynamic department, position and manager selects | done |
+| T30+ | Remaining employee actions and the project and dashboard screens | pending |
 
 The database, domain layer, data-access foundation, services and the API infrastructure
 (envelope, validation mapping, exception mapping, Swagger) are complete, and MVC plus the API
@@ -114,7 +115,7 @@ migration tool, test projects, CI pipelines, and containerization of the .NET ap
 | [docs/architecture.md](docs/architecture.md) | Projects, layer responsibilities, data-access rules, design-system contract, scope. |
 | [docs/database.md](docs/database.md) | Schema, constraints, stored procedure, seed fixtures. |
 | [docs/TEST-SCENARIO-API.md](docs/TEST-SCENARIO-API.md) | API scenario matrix, paired with the runnable `src/EnterpriseHR.Api/requests.http`. |
-| [docs/development-stages.md](docs/development-stages.md) | T01–T28 stage log and what comes next. |
+| [docs/development-stages.md](docs/development-stages.md) | T01–T29 stage log and what comes next. |
 | [db/README.md](db/README.md) | Rules for the numbered SQL init scripts. |
 | [AGENTS.md](AGENTS.md) | Working rules for coding agents, including where each kind of knowledge belongs. |
 
