@@ -282,7 +282,8 @@ serving requests that touch the database.
 | T09 | Domain exceptions | done |
 | T10 | Domain interfaces | done |
 | T11 | Repository base, transaction runner, SQL error translation | done |
-| T12+ | Application features | pending |
+| T12 | Lookup repository | done |
+| T13+ | Application features | pending |
 
 The schema from T02 is in place, so `db-init` now actually runs `db/01_schema.sql`
 instead of reporting that it has nothing to do. T03 adds
@@ -351,8 +352,18 @@ transaction runner in the solution (`ExecuteInTransactionAsync`, one connection 
 `CancellationToken.None` before rethrowing), plus `TranslateSql`, which maps SQL Server 2627
 and 2601 to `ConflictException` and 547 to `BusinessRuleException` while leaving every other
 `SqlException` untouched. The original error is wrapped as `InnerException`, so the SQL error
-number survives. No repository inherits it yet; T12 adds the first one, and from then on they
-call this helper instead of opening transactions themselves.
+number survives. Repositories call this helper instead of opening transactions themselves.
+
+T12 adds the first repository, `src/EnterpriseHR.DataAccess/Repositories/LookupRepository.cs`,
+which implements all three `ILookupRepository` methods: department options, position options,
+and employee options formatted as `FullName (EmployeeNumber)`. Each method opens its own
+connection and runs one parameterized `QueryAsync<SelectOptionDto>` whose columns are aliased
+`Value` and `Text`, the two names Dapper needs to build the positional `SelectOptionDto`
+record. The employee query takes `activeOnly` and `excludeEmployeeId`, so the seed returns 9
+active employees, 10 when inactive records are included, and one fewer when an employee is
+excluded. The repository is read-only — it opens no transactions and issues no mutating SQL —
+and is not yet registered in `AddEnterpriseHrDataAccess`; registration lands with the
+remaining repositories so one change wires them all.
 
 The design system export in `design-system/` is static reference material at this
 stage. No Razor view or layout uses it yet; that starts when the dashboard screens are
