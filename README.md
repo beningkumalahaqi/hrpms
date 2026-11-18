@@ -283,7 +283,8 @@ serving requests that touch the database.
 | T10 | Domain interfaces | done |
 | T11 | Repository base, transaction runner, SQL error translation | done |
 | T12 | Lookup repository | done |
-| T13+ | Application features | pending |
+| T13 | Employee read operations (multi-mapping) | done |
+| T14+ | Application features | pending |
 
 The schema from T02 is in place, so `db-init` now actually runs `db/01_schema.sql`
 instead of reporting that it has nothing to do. T03 adds
@@ -364,6 +365,18 @@ active employees, 10 when inactive records are included, and one fewer when an e
 excluded. The repository is read-only — it opens no transactions and issues no mutating SQL —
 and is not yet registered in `AddEnterpriseHrDataAccess`; registration lands with the
 remaining repositories so one change wires them all.
+
+T13 adds `src/EnterpriseHR.DataAccess/Repositories/EmployeeRepository.cs` with the two read
+methods, `GetAllEmployeesAsync` and `GetEmployeeByIdAsync`. Both use one four-type Dapper
+multi-map — employee, department, position and manager — over the same join block, with the
+select list ordered so `splitOn: "Id,Id,Id"` splits the four groups correctly. A list call
+costs exactly two statements: the filtered `COUNT(*)` and one `OFFSET`/`FETCH` page, never a
+query per row. The manager join is a `LEFT JOIN`, so the three top-level managers come back
+with a null manager, and `Search` is escaped for `LIKE` (`\`, `%`, `_`, `[`) so a typed
+wildcard matches literally. Paging clamps `Page` to at least 1 and `PageSize` to 1–100 and
+computes the offset in `long`, so an enormous page number yields an empty page instead of an
+overflow. The class is `partial` and does not yet declare `IEmployeeRepository`, because the
+write members arrive in the following stages.
 
 The design system export in `design-system/` is static reference material at this
 stage. No Razor view or layout uses it yet; that starts when the dashboard screens are
