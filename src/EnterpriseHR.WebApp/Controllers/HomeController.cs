@@ -23,9 +23,25 @@ public class HomeController : Controller
         return View();
     }
 
+    // Reached two ways: UseExceptionHandler("/Home/Error") without a code in non-Development,
+    // and UseStatusCodePagesWithReExecute("/Home/Error", "?code={0}") for body-less MVC
+    // statuses. The original status is put back on the response so a 404 page answers 404.
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-    public IActionResult Error()
+    public IActionResult Error(int? code)
     {
+        if (code is int statusCode)
+        {
+            Response.StatusCode = statusCode;
+        }
+
+        ViewData["StatusCode"] = code;
+        ViewData["Title"] = code switch
+        {
+            StatusCodes.Status404NotFound => "Page not found",
+            >= StatusCodes.Status500InternalServerError => "Something went wrong",
+            _ => "Error",
+        };
+
         return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
     }
 }

@@ -1,0 +1,69 @@
+@model (int Page, int TotalPages, IDictionary<string, string> RouteValues)
+@using Microsoft.AspNetCore.Http
+@{
+    // Render the design-system pagination inside a panel footer. Links keep the current
+    // query string and only override "page", so filters survive a page change.
+    var totalPages = Math.Max(Model.TotalPages, 1);
+    var page = Math.Min(Math.Max(Model.Page, 1), totalPages);
+
+    var query = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+    if (Model.RouteValues is not null)
+    {
+        foreach (var pair in Model.RouteValues)
+        {
+            query[pair.Key] = pair.Value;
+        }
+    }
+
+    string PageUrl(int target)
+    {
+        query["page"] = target.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return $"{ViewContext.HttpContext.Request.Path}{QueryString.Create(query)}";
+    }
+}
+<div class="pagination">
+    <span class="pagination-info">Page @(page) of @totalPages</span>
+    <div class="pagination-controls">
+        @if (page > 1)
+        {
+            <a class="button secondary" href="@PageUrl(page - 1)" rel="prev">
+                <svg class="od-icon od-icon-control" aria-hidden="true" focusable="false"><use href="#i-chevron-left" /></svg>
+                <span>Previous</span>
+            </a>
+        }
+        else
+        {
+            <span class="button secondary" aria-disabled="true">
+                <svg class="od-icon od-icon-control" aria-hidden="true" focusable="false"><use href="#i-chevron-left" /></svg>
+                <span>Previous</span>
+            </span>
+        }
+
+        @for (var number = 1; number <= totalPages; number++)
+        {
+            if (number == page)
+            {
+                <span class="button primary page-number" aria-current="page">@number</span>
+            }
+            else
+            {
+                <a class="button secondary page-number" href="@PageUrl(number)" aria-label="Page @number">@number</a>
+            }
+        }
+
+        @if (page < totalPages)
+        {
+            <a class="button secondary" href="@PageUrl(page + 1)" rel="next">
+                <span>Next</span>
+                <svg class="od-icon od-icon-control" aria-hidden="true" focusable="false"><use href="#i-chevron-right" /></svg>
+            </a>
+        }
+        else
+        {
+            <span class="button secondary" aria-disabled="true">
+                <span>Next</span>
+                <svg class="od-icon od-icon-control" aria-hidden="true" focusable="false"><use href="#i-chevron-right" /></svg>
+            </span>
+        }
+    </div>
+</div>

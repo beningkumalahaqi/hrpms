@@ -33,7 +33,8 @@ the log of what each stage added. The authoritative "what is done" summary is th
 | T24 | Project API endpoints: details and assignment | done |
 | T25 | Report API endpoint: department summary | done |
 | T26 | API request collection and scenario matrix | done |
-| T27+ | Remaining API endpoints and Razor screens | pending |
+| T27 | WebApp shell: design-system layout, top navigation, alerts, pager, home cards | done |
+| T28+ | Remaining API endpoints and Razor screens | pending |
 
 ## T01–T04 — Infrastructure and database
 
@@ -437,8 +438,55 @@ The scenario matrix also records what the API does **not** have: there is no
 `GET /api/projects/{id}/details` is the closest thing to a lookup. That gap is stated in the doc
 instead of being worked around.
 
+## T27 — WebApp shell, layout, alerts and pager
+
+T27 turns the MVC host from the template into the HR Workspace shell. The visual source is
+`design-system/`, not a framework: `wwwroot/css/site.css` now contains the export's
+`OD-LAYOUT-PRIMITIVES` block and `design-system/styles.css` verbatim (tokens, type scale,
+buttons, panels, tables, pagination, states), followed by one labelled section for the pieces
+the export does not ship. Bootstrap CSS, Bootstrap Icons and the scoped
+`EnterpriseHR.WebApp.styles.css` link are gone from the layout; the `wwwroot/lib/bootstrap`
+files stay on disk for a later cleanup, but nothing references them.
+
+The export's shell is a sidebar with a topbar. The task requires top navigation, so
+`_Layout.cshtml` composes the same brand, `.nav-item` (`.is-active` plus `aria-current="page"`)
+and topbar tokens into one sticky `.site-header`, keeps the footer treatment, and adds the skip
+link and icon sprite. The active route is derived from `RouteData`; the four links are
+Tag-Helper routes to `Home`, `Employees`, `Projects` and `Dashboard`. Only Home exists, so the
+other three intentionally answer the branded 404 until their screens land. Below 640px the nav
+takes its own row and below 480px the icons drop, which keeps all four labels on one line at
+360px with no horizontal overflow.
+
+`_Alerts.cshtml` renders `TempData["Success"]`, `["Warning"]` and `["Error"]` from the layout,
+above `RenderBody()`. The export has no inline alert component, so `.alert` extends the existing
+success/warning/error background and text pairs plus the toast border tints; it uses
+`role="status"` for success, `role="alert"` for warnings and errors, and a dismiss button
+removes the banner. `_Pager.cshtml` renders the export's `.pagination` markup from
+`(Page, TotalPages, RouteValues)`, overriding only `page` so filters survive navigation.
+
+`Program.cs` adds `UseStatusCodePagesWithReExecute("/Home/Error", "?code={0}")`, and
+`HomeController.Error` puts the original status back on the response, so `/Dashboard` answers a
+branded 404 instead of an empty body. The middleware sits outside the `/api` branch, which
+keeps the JSON envelope on unknown API routes: `/api/nope` still returns the 404 envelope with
+`Content-Type: application/json`. The Home page is a page header and one card per module; no
+POST form exists yet, and `_ValidationScriptsPartial` plus its jQuery assets are still served
+for the forms that follow.
+
+Verification was done against the running host, not the Razor source. The build is 0 warnings,
+0 errors. In Chromium the home page, skip link (Tab, Enter moves focus to `main`), nav links and
+404 page were exercised at 320, 360, 390, 430, 600, 820, 1024, 1440 and 1920 widths with no
+horizontal overflow; the layout keeps one nav row at every width. Alert rendering was probed
+with all three TempData keys including `<script>alert('xss')</script>` and `<em>` payloads,
+which appeared as literal text, and the dismiss control removed the banner. The pager probe
+rendered page 2 of 4 with `search` and `departmentId` preserved and `page` overridden, plus the
+page-1-of-1 disabled state. Both probes were reverted. The API request collection was re-run
+after the pipeline change: 63 passed, 0 failed; the seed snapshot was restored to
+`4|10|9|6|7|0`.
+
 ## Next
 
-T27 onward adds the remaining controllers — employee create/read/update/delete, and the project
-list — and then the Razor screens ported from `design-system/`. Each new endpoint should get a
-group in `requests.http` and a section in `docs/TEST-SCENARIO-API.md`.
+T28 onward adds the remaining controllers — employee create/read/update/delete and the project
+list — and then the employee, project and dashboard screens ported from `design-system/`. Each
+new endpoint should get a group in `requests.http` and a section in
+`docs/TEST-SCENARIO-API.md`; each new screen starts from the existing shell, `.page`,
+`.panel`, `.data-table` and `.field` components.

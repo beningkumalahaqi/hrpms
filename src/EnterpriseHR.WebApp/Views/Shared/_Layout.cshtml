@@ -1,49 +1,103 @@
-﻿<!DOCTYPE html>
+﻿@{
+    var routeController = ViewContext.RouteData.Values["controller"] as string;
+    var routeAction = ViewContext.RouteData.Values["action"] as string;
+
+    bool IsCurrent(string controller, string action) =>
+        string.Equals(routeController, controller, StringComparison.OrdinalIgnoreCase)
+        && string.Equals(routeAction, action, StringComparison.OrdinalIgnoreCase);
+
+    var homeActive = IsCurrent("Home", "Index");
+    var employeesActive = IsCurrent("Employees", "Index");
+    var projectsActive = IsCurrent("Projects", "Index");
+    var dashboardActive = IsCurrent("Dashboard", "Index");
+}
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - EnterpriseHR.WebApp</title>
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] - EnterpriseHR</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/EnterpriseHR.WebApp.styles.css" asp-append-version="true" />
 </head>
 <body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">EnterpriseHR.WebApp</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </nav>
-    </header>
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
-    </div>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 - EnterpriseHR.WebApp - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+    @* Icon sprite from design-system/design-system.html. i-home is the one addition:
+       the export has no home glyph, so it follows the same 24px grid and stroke. *@
+    <svg class="icon-sprite" aria-hidden="true" focusable="false">
+        <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 10.5 9-7 9 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5h4v5"/></symbol>
+        <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></symbol>
+        <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20v-2.2A5.8 5.8 0 0 1 8.3 12h1.4a5.8 5.8 0 0 1 5.8 5.8V20M16 5.5a3.5 3.5 0 0 1 0 7M17.5 14a5 5 0 0 1 4 4.9V20"/></symbol>
+        <symbol id="i-briefcase" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13"/><path d="M8 7V4h8v3M3 12h18M10 12v2h4v-2"/></symbol>
+        <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></symbol>
+        <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+        <symbol id="i-close" viewBox="0 0 24 24"><path d="m5 5 14 14M19 5 5 19"/></symbol>
+        <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></symbol>
+        <symbol id="i-cancel" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 8 8 8M16 8l-8 8"/></symbol>
+        <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v5M12 17v.5"/></symbol>
+    </svg>
+
+    <header class="site-header">
+        <div class="site-header-inner">
+            <a class="site-brand" asp-controller="Home" asp-action="Index">
+                <span class="brand-name">EnterpriseHR</span>
+                <span class="brand-caption">People and projects</span>
+            </a>
+            <nav class="site-nav" aria-label="Primary">
+                <a class="@(homeActive ? "nav-item nav-link is-active" : "nav-item nav-link")"
+                   asp-controller="Home" asp-action="Index" aria-current="@(homeActive ? "page" : null)">
+                    <svg class="od-icon od-icon-control" aria-hidden="true" focusable="false"><use href="#i-home" /></svg>
+                    <span>Home</span>
+                </a>
+                <a class="@(employeesActive ? "nav-item nav-link is-active" : "nav-item nav-link")"
+                   asp-controller="Employees" asp-action="Index" aria-current="@(employeesActive ? "page" : null)">
+                    <svg class="od-icon od-icon-control" aria-hidden="true" focusable="false"><use href="#i-users" /></svg>
+                    <span>Employees</span>
+                </a>
+                <a class="@(projectsActive ? "nav-item nav-link is-active" : "nav-item nav-link")"
+                   asp-controller="Projects" asp-action="Index" aria-current="@(projectsActive ? "page" : null)">
+                    <svg class="od-icon od-icon-control" aria-hidden="true" focusable="false"><use href="#i-briefcase" /></svg>
+                    <span>Projects</span>
+                </a>
+                <a class="@(dashboardActive ? "nav-item nav-link is-active" : "nav-item nav-link")"
+                   asp-controller="Dashboard" asp-action="Index" aria-current="@(dashboardActive ? "page" : null)">
+                    <svg class="od-icon od-icon-control" aria-hidden="true" focusable="false"><use href="#i-dashboard" /></svg>
+                    <span>Dashboard</span>
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main-content" id="main-content" tabindex="-1">
+        <partial name="_Alerts" />
+        @RenderBody()
+    </main>
+
+    <footer class="site-footer">
+        <div class="site-footer-inner">
+            <span>EnterpriseHRSystem - HR Workspace</span>
+            <span>ASP.NET Core MVC and SQL Server</span>
         </div>
     </footer>
+
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script>
+        document.addEventListener("click", function (event) {
+            var dismiss = event.target.closest("[data-dismiss-alert]");
+            if (!dismiss) {
+                return;
+            }
+
+            var alert = dismiss.closest(".alert");
+            if (alert) {
+                alert.remove();
+            }
+        });
+    </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

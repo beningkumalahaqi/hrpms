@@ -86,13 +86,15 @@ steps, and the Apple Silicon caveats — is in
 | T24 | Project endpoints: details and employee assignment | done |
 | T25 | Report endpoint: department summary | done |
 | T26 | API request collection and scenario matrix | done |
-| T27+ | Remaining API endpoints and Razor screens | pending |
+| T27 | WebApp shell: design-system layout, top navigation, alerts, pager, home cards | done |
+| T28+ | Remaining API endpoints and Razor screens | pending |
 
 The database, domain layer, data-access foundation, services and the API infrastructure
 (envelope, validation mapping, exception mapping, Swagger) are complete, and MVC plus the API
-now serve from one process. The employee, project and report endpoints are live; what is still
-missing: the employee write endpoints, the project list, and the Razor screens ported from the
-design system. The API can be exercised end to end with
+serve from one process. The employee, project and report endpoints are live, and the MVC shell
+now uses the HR Workspace design system with top navigation, shared alerts, a pager and a home
+page. What is still missing: the employee write endpoints, the project list, and the employee,
+project and dashboard screens. The API can be exercised end to end with
 [`src/EnterpriseHR.Api/requests.http`](src/EnterpriseHR.Api/requests.http), whose scenarios are
 tabulated in [docs/TEST-SCENARIO-API.md](docs/TEST-SCENARIO-API.md).
 Stage-by-stage detail is in [docs/development-stages.md](docs/development-stages.md).
@@ -109,7 +111,7 @@ migration tool, test projects, CI pipelines, and containerization of the .NET ap
 | [docs/architecture.md](docs/architecture.md) | Projects, layer responsibilities, data-access rules, design-system contract, scope. |
 | [docs/database.md](docs/database.md) | Schema, constraints, stored procedure, seed fixtures. |
 | [docs/TEST-SCENARIO-API.md](docs/TEST-SCENARIO-API.md) | API scenario matrix, paired with the runnable `src/EnterpriseHR.Api/requests.http`. |
-| [docs/development-stages.md](docs/development-stages.md) | T01–T26 stage log and what comes next. |
+| [docs/development-stages.md](docs/development-stages.md) | T01–T27 stage log and what comes next. |
 | [db/README.md](db/README.md) | Rules for the numbered SQL init scripts. |
 | [AGENTS.md](AGENTS.md) | Working rules for coding agents, including where each kind of knowledge belongs. |
 

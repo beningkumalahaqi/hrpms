@@ -286,9 +286,11 @@ Two guards keep it honest. If `Response.HasStarted` the middleware cannot rewrit
 so it logs and rethrows rather than appending JSON to a partially sent body. And the whole
 middleware is skipped for any path outside `/api`: a non-API exception is rethrown to the MVC
 exception handler, so an MVC page still renders the developer exception page in Development
-and `/Home/Error` in Production. The same split applies to framework-generated statuses: a
-`UseWhen` branch on `/api` wraps only body-less 404 and 405 responses in the envelope, and MVC
-pages keep their plain 404 and their normal 405 behavior.
+and `/Home/Error` in Production. The same split applies to framework-generated statuses:
+`UseStatusCodePagesWithReExecute("/Home/Error", "?code={0}")` renders a branded page for a
+body-less MVC 404, while the `UseWhen` branch on `/api` wraps body-less API 404 and 405
+responses in the envelope. The status-code middleware sits outside that branch, so it only
+sees an API response after the envelope has started and leaves it alone.
 
 ## Frontend and design system
 
@@ -305,7 +307,7 @@ framework default.
 | `DESIGN-MANIFEST.json` | Machine-readable map of screens, tokens, required states, and viewports. |
 | `DESIGN-HANDOFF.md` | Fidelity contract: preserve geometry, tokens, copy, and states; drop prototype chrome. |
 
-Porting rules for the dashboard:
+Porting rules for the MVC screens:
 
 - Copy the tokens into `src/EnterpriseHR.WebApp/wwwroot/css/` and keep the `:root`
   variable names. Do not substitute a framework theme or a new palette.
@@ -319,8 +321,22 @@ Porting rules for the dashboard:
 - The export is reference material. Nothing from it is served by the application until a
   screen or component is ported into a Razor view and static assets.
 
-The dashboard is still the ASP.NET Core MVC template: no Razor view or layout uses the
-design system yet. That starts when the first screen is ported.
+### Ported so far
+
+| Asset | What it holds |
+| ----- | ------------- |
+| `wwwroot/css/site.css` | The export's `OD-LAYOUT-PRIMITIVES` block, then `design-system/styles.css` verbatim (`:root` tokens, type scale, buttons, panels, tables, pagination, states), then one labelled section for the app shell. Change the export first and re-port; do not restyle the copied rules inline. |
+| `Views/Shared/_Layout.cshtml` | Skip link, icon sprite, sticky top navigation, `<main>` and footer. The export's sidebar plus topbar are composed into one header because the screens use top navigation; the brand, `.nav-item` and active-state tokens are unchanged, and the active route is derived from `RouteData`. |
+| `Views/Shared/_Alerts.cshtml` | `TempData["Success"]`, `["Warning"]` and `["Error"]` as inline alerts with `role="status"`/`role="alert"` and a dismiss control. Rendered by the layout above `RenderBody()`. |
+| `Views/Shared/_Pager.cshtml` | The design-system `.pagination` markup, built from `(Page, TotalPages, RouteValues)`. Links keep the current query string and override only `page`. |
+| `Views/Home/Index.cshtml` | Page header plus one card per module. |
+| `Views/Shared/Error.cshtml` | The design-system error state for `HomeController.Error`, reached by `UseExceptionHandler` and by status-code re-execution; the action puts the original status back on the response. |
+
+Bootstrap is not referenced by the layout. `wwwroot/lib/bootstrap` and the template
+`Views/Shared/_Layout.cshtml.css` still exist on disk but nothing links them. The employee,
+project and dashboard screens are not ported yet, so those nav links answer the branded 404
+until their stages land. New screens start from `.page`, `.page-header`, `.panel`,
+`.data-table`, `.field` and the `.button` variants instead of new CSS.
 
 ## Scope
 

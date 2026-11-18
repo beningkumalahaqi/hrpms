@@ -96,10 +96,17 @@ app.UseStaticFiles();
 // pages on their own error handling.
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
+// Body-less MVC statuses (an unknown page, a 405 on a page route) get the branded error view
+// instead of an empty response. It is registered outside the /api branch below, so the JSON
+// envelope for an unknown API route is written first and this middleware then sees a started
+// response and leaves it alone. The re-executed action puts the original status back, so a
+// 404 page still answers 404.
+app.UseStatusCodePagesWithReExecute("/Home/Error", "?code={0}");
+
 // Framework-generated /api/** responses that carry no body (404 for an unknown route, 405 for
 // a wrong verb) get the standard envelope here. Wrapping the status, rather than the request,
-// means MVC pages are untouched: a 404 there is still the plain HTML 404, and a 405 still
-// follows the MVC pipeline.
+// means MVC pages are untouched: a 404 there goes through the status-code pages above, and a
+// 405 still follows the MVC pipeline.
 app.UseWhen(
     ctx => ctx.Request.Path.StartsWithSegments("/api"),
     api => api.Use(async (ctx, next) =>

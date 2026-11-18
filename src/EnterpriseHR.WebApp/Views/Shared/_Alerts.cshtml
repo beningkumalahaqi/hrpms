@@ -1,0 +1,29 @@
+@{
+    // TempData keys are the WebApp's existing feedback channel: controllers set
+    // TempData["Success"], ["Warning"] or ["Error"] before redirecting. Razor encodes
+    // the value, so a message that contains markup is rendered as text.
+    var alerts = new[]
+    {
+        (Key: "Success", CssClass: "success", Icon: "i-check-circle", Role: "status", Label: "success"),
+        (Key: "Warning", CssClass: "warning", Icon: "i-alert", Role: "alert", Label: "warning"),
+        (Key: "Error", CssClass: "error", Icon: "i-cancel", Role: "alert", Label: "error"),
+    };
+}
+@foreach (var alert in alerts)
+{
+    if (TempData[alert.Key] is not string message || string.IsNullOrWhiteSpace(message))
+    {
+        continue;
+    }
+
+    <div class="alert @alert.CssClass" role="@alert.Role">
+        <svg class="od-icon od-icon-control" aria-hidden="true" focusable="false"><use href="#@alert.Icon" /></svg>
+        <div class="alert-content">
+            <strong class="alert-title">@alert.Key</strong>
+            <span class="alert-message">@message</span>
+        </div>
+        <button class="icon-button" type="button" data-dismiss-alert aria-label="Dismiss @alert.Label message">
+            <svg class="od-icon od-icon-control" aria-hidden="true" focusable="false"><use href="#i-close" /></svg>
+        </button>
+    </div>
+}
