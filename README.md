@@ -168,22 +168,30 @@ docker exec enterprisehr-sql /opt/mssql-tools18/bin/sqlcmd \
   -S localhost -U sa -P '<your-password>' -C -Q "SELECT @@VERSION"
 ```
 
-To confirm the database exists once the T02 schema script has run:
+To confirm the database and its tables exist:
 
 ```bash
 docker exec enterprisehr-sql /opt/mssql-tools18/bin/sqlcmd \
-  -S localhost -U sa -P '<your-password>' -C -Q "SELECT name FROM sys.databases"
+  -S localhost -U sa -P '<your-password>' -C -d EnterpriseHRDB \
+  -Q "SELECT name FROM sys.tables ORDER BY name"
 ```
+
+A completed schema run lists six tables: `Departments`, `Employees`, `Positions`,
+`ProjectAssignments`, `Projects`, `SalaryHistories`.
 
 ### Database scripts
 
-| File | Contents |
-| ---- | -------- |
-| `db/01_*.sql` | `EnterpriseHRDB` database, tables, keys, indexes |
-| `db/02_*.sql` | Stored procedures |
-| `db/03_*.sql` | Seed data |
+| File | Contents | Status |
+| ---- | -------- | ------ |
+| `db/01_schema.sql` | `EnterpriseHRDB` database, tables, keys, indexes | present |
+| `db/02_*.sql` | Stored procedures and supporting objects | pending (T03) |
+| `db/03_*.sql` | Seed data | pending (T04) |
 
-No SQL scripts are committed yet; `db/` holds only its README at this stage.
+`db/01_schema.sql` creates the six tables in dependency order, with named `PK_`, `UQ_`,
+`FK_`, `CK_` and `DF_` constraints, plus indexes on the main foreign-key columns. It is
+idempotent, so re-running `db-init` skips objects that already exist. It does not alter
+existing tables: after changing a definition, recreate the volume
+(`docker compose down -v`) before running `db-init` again.
 
 ## Configuration
 
@@ -241,6 +249,7 @@ serving requests that touch the database.
 .
 ├── docker-compose.yml          # SQL Server 2022 + db-init
 ├── .env.example                # template for local secrets
+├── AGENTS.md                   # guidance for coding agents: design, docs, memory
 ├── EnterpriseHRSystem.sln      # solution (T05)
 ├── db/                         # SQL init scripts, run by db-init
 ├── design-system/              # exported HR Workspace UI reference (tokens, screens, states)
@@ -257,15 +266,15 @@ serving requests that touch the database.
 | Stage | Scope | State |
 | ----- | ----- | ----- |
 | T01 | Repository, Docker Compose SQL Server, README | done |
-| T02 | Database schema and `EnterpriseHRDB` creation | pending |
+| T02 | Database schema and `EnterpriseHRDB` creation | done |
 | T03 | Stored procedures and data-access queries | pending |
 | T04 | Seed data | pending |
 | T05 | Solution and the four projects | pending |
 | T06+ | Application features | pending |
 
-Until T02 adds the first `db/0*.sql` script, the `db-init` service has nothing to run.
-It reports `No numbered SQL scripts found yet; skipping database initialization.` and
-exits with status 0. The `sqlserver` container is unaffected and can be used normally.
+The schema from T02 is in place, so `db-init` now actually runs `db/01_schema.sql`
+instead of reporting that it has nothing to do. The database is still empty of rows
+until the seed script (T04) lands.
 
 The design system export in `design-system/` is static reference material at this
 stage. No Razor view or layout uses it yet; that starts when the solution exists (T05).
@@ -353,3 +362,8 @@ Frontend rules:
 
 Design notes, API contracts, and database documentation belong in `docs/`. Each stage
 adds its own notes there rather than expanding this README beyond setup.
+
+`AGENTS.md` points coding agents at the three reference areas: `design-system/` for the
+visual contract, `docs/` for written documentation, and `agents/memory/` for local
+working notes. The memory directory is intentionally not committed; it holds verified
+environment facts and task notes that only matter on a developer machine.

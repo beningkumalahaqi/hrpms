@@ -8,9 +8,9 @@ container after it reports healthy.
 
 | Prefix | Contents | Status |
 | ------ | -------- | ------ |
-| `01_*.sql` | Database and schema creation | added in T02 |
-| `02_*.sql` | Stored procedures and supporting objects | added in T03 |
-| `03_*.sql` | Seed / sample data | added in T04 |
+| `01_schema.sql` | Database and schema creation | present (T02) |
+| `02_*.sql` | Stored procedures and supporting objects | pending (T03) |
+| `03_*.sql` | Seed / sample data | pending (T04) |
 
 Rules for these scripts:
 
@@ -20,5 +20,10 @@ Rules for these scripts:
   defaults; `db-init` invokes `sqlcmd` with `-b` so any error aborts the run.
 - **Ordered.** Filenames must keep a numeric prefix so the glob order is stable.
 
-No SQL scripts exist yet, so `db-init` prints
-`No numbered SQL scripts found yet; skipping database initialization.` and exits 0.
+`01_schema.sql` creates `EnterpriseHRDB` and its six tables. It guards every object with
+`IF OBJECT_ID(..., 'U') IS NULL` and every index with an `IF NOT EXISTS` check on
+`sys.indexes`, but it never alters an existing table. After changing a table definition,
+recreate the local volume with `docker compose down -v` before running `db-init` again.
+
+Expect `db-init` to print `Running /scripts/01_schema.sql` followed by
+`Changed database context to 'EnterpriseHRDB'.` on both the first and any later run.

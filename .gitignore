@@ -47,3 +47,4 @@ project.fragment.lock.json
 logs/
 .DS_Store
 Thumbs.db
+agents
