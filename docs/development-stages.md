@@ -28,7 +28,8 @@ the log of what each stage added. The authoritative "what is done" summary is th
 | T20 | Services and dependency-injection registration | done |
 | T21 | API bootstrap, response envelope, validation, Swagger | done |
 | T21.5 | Single host: Api as a class library, WebApp serves MVC + `/api/**` + Swagger | done |
-| T22+ | API endpoints and exception middleware | pending |
+| T22 | Global API exception-handling middleware | done |
+| T23+ | API endpoints and Razor screens | pending |
 
 ## T01–T04 — Infrastructure and database
 
@@ -233,8 +234,48 @@ controller resolved `IEmployeeService` and read live seed data (`total=10`, firs
 MVC path both return 404; `/api` is not reachable outside the prefix. Swagger remains
 Development-only: in Production it answers 404 while MVC still serves 200.
 
+## T22 — Global API exception handling
+
+`src/EnterpriseHR.Api/Middleware/ExceptionHandlingMiddleware.cs` is a convention-based
+middleware (`RequestDelegate` + `ILogger<ExceptionHandlingMiddleware>`) that turns a failed
+API request into the same envelope a successful one uses. It maps `NotFoundException` → 404,
+`BusinessRuleException` → 400 and `ConflictException` → 409 with the exception's own message,
+and anything else → 500 with the fixed sentence `"An unexpected error occurred."`.
+`SqlException` 2627/2601 → 409 and 547 → 400 are kept as a safety net mirroring
+`RepositoryBase.TranslateSql`, so a constraint error that escapes a repository still produces
+the right status instead of a 500; that case is logged at `Error` because it means a
+repository missed a translation. An `OperationCanceledException` whose `RequestAborted` fired
+is not an error at all — the client hung up, so the middleware writes no body and logs at
+`Debug`.
+
+Responses are written with `WriteAsJsonAsync` and `ApiResponse<object>.Fail(message)`, so
+`data` is `null`; the `data`-carrying 400 stays reserved for model binding, which is handled
+earlier by `InvalidModelStateResponseFactory`. The full exception is logged only on the 500
+path, so the client never sees a stack trace, an exception message or a SQL identifier.
+If the response already started the middleware cannot rewrite it, so it logs and rethrows
+rather than appending JSON to a partly sent body.
+
+Registration is in the single WebApp pipeline, after `UseStaticFiles()` and before
+`UseRouting()`: early enough to cover routing, filters and action execution, and inside the
+MVC exception handler so MVC pages are unaffected. The middleware itself returns immediately
+for any path outside `/api`, rethrowing to that handler, which is what keeps the developer
+exception page in Development and `/Home/Error` in Production on an MVC request. A `UseWhen`
+branch on `/api` wraps the body-less framework statuses — 404 for an unknown route, 405 for a
+wrong verb — in the same envelope, guarded by `HasStarted`, a zero `ContentLength` and a null
+`ContentType` so a real payload is never overwritten.
+
+Verified with a throwaway probe controller in `Api` and one in WebApp, both later deleted:
+each domain exception returned its status and an envelope with `data: null`; a real duplicate
+insert returned 409 and a real foreign-key violation 400, from SQL Server, without writing a
+row; an unhandled action returned 500 `"An unexpected error occurred."` with zero occurrences
+of the internal detail in the body while the log held the full exception; an unknown `/api`
+route and a wrong verb returned envelope 404/405 while an unknown MVC route stayed a plain
+body-less 404 and an MVC action still rendered the HTML error page in Production; a
+model-binding failure still returned the T21 validation envelope with field errors. A response
+that had already started was left untouched and logged. Client cancellation produced no
+response and no error log.
+
 ## Next
 
-T22 onward adds the endpoints themselves and the exception-to-status-code middleware: the
-employee, project, assignment and report controllers, and the Razor screens ported from
-`design-system/`.
+T23 onward adds the endpoints themselves: the employee, project, assignment and report
+controllers, and the Razor screens ported from `design-system/`.

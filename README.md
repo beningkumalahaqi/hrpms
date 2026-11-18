@@ -81,12 +81,13 @@ steps, and the Apple Silicon caveats — is in
 | T11–T20 | Repository base, lookups, employee CRUD, salary history, project reads and assignments, department report, services and DI | done |
 | T21 | API bootstrap, response envelope, validation, Swagger | done |
 | T21.5 | Single host: Api becomes a class library, WebApp serves MVC + `/api/**` + Swagger | done |
-| T22+ | API endpoints, exception middleware, Razor screens | pending |
+| T22 | Global API exception-handling middleware | done |
+| T23+ | API endpoints and Razor screens | pending |
 
 The database, domain layer, data-access foundation, services and the API infrastructure
-(envelope, validation mapping, Swagger) are complete, and MVC plus the API now serve from
-one process. What is still missing: the concrete API controllers, the
-exception-to-status-code middleware, and the Razor screens ported from the design system.
+(envelope, validation mapping, exception mapping, Swagger) are complete, and MVC plus the API
+now serve from one process. What is still missing: the concrete API controllers and the Razor
+screens ported from the design system.
 Stage-by-stage detail is in [docs/development-stages.md](docs/development-stages.md).
 
 Out of scope unless separately requested: authentication and authorization, EF Core or any
@@ -100,7 +101,7 @@ migration tool, test projects, CI pipelines, and containerization of the .NET ap
 | [docs/getting-started.md](docs/getting-started.md) | Prerequisites, local setup, configuration, running the application, troubleshooting. |
 | [docs/architecture.md](docs/architecture.md) | Projects, layer responsibilities, data-access rules, design-system contract, scope. |
 | [docs/database.md](docs/database.md) | Schema, constraints, stored procedure, seed fixtures. |
-| [docs/development-stages.md](docs/development-stages.md) | T01–T21.5 stage log and what comes next. |
+| [docs/development-stages.md](docs/development-stages.md) | T01–T22 stage log and what comes next. |
 | [db/README.md](db/README.md) | Rules for the numbered SQL init scripts. |
 | [AGENTS.md](AGENTS.md) | Working rules for coding agents, including where each kind of knowledge belongs. |
 

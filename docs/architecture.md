@@ -57,7 +57,7 @@ EnterpriseHRSystem.sln
 | `EnterpriseHR.Domain` | Entities, enums, DTOs, request types, domain validation and calculation rules, exception hierarchy, and the repository/service interfaces. No database or web dependencies. | none |
 | `EnterpriseHR.DataAccess` | Dapper repositories, services (thin orchestration), parameterized SQL, stored-procedure calls, mapping, transaction handling, and DI registration. Owns the `Microsoft.Data.SqlClient` connection factory and connection-string configuration. | Domain |
 | `EnterpriseHR.WebApp` | The only executable application: ASP.NET Core MVC host with Razor Views, view models, controllers, Tag Helpers, the design-system layout, Swagger, and the JSON/validation configuration. Registers `EnterpriseHR.Api` as an MVC application part so its controllers are served from this process. Calls DataAccess for all persistence. | Domain, DataAccess, Api |
-| `EnterpriseHR.Api` | Class library, not a host: API controllers deriving from `ApiControllerBase`, the `ApiResponse<T>` envelope, and API-specific middleware. No `Program.cs`, no `appsettings`, no launch profile. Routes stay under `api/[controller]`. | Domain, DataAccess |
+| `EnterpriseHR.Api` | Class library, not a host: API controllers deriving from `ApiControllerBase`, the `ApiResponse<T>` envelope, and API-specific middleware (`ExceptionHandlingMiddleware`). No `Program.cs`, no `appsettings`, no launch profile. Routes stay under `api/[controller]`. | Domain, DataAccess |
 
 There is no fifth project, no separate services project and no reverse proxy: the
 orchestration services live in `EnterpriseHR.DataAccess/Services/`, next to the repositories
@@ -85,8 +85,8 @@ cannot depend on the host. That is what lets `Api` stay a plain library with a
   rules.
 - `Exceptions/` — abstract `AppException` plus `NotFoundException` (404),
   `BusinessRuleException` (400) and `ConflictException` (409). The mapping is a
-  convention, not code: Domain references no ASP.NET Core assemblies, and the API host's
-  middleware/filter translates the types into status codes.
+  convention, not code: Domain references no ASP.NET Core assemblies, and
+  `ExceptionHandlingMiddleware` in `EnterpriseHR.Api` translates the types into status codes.
 - `Interfaces/` — `ILookupRepository`, `IEmployeeRepository`, `IProjectRepository`,
   `IReportRepository` and the `IEmployeeService`, `IProjectService`, `IReportService`
   contracts. Every method takes `CancellationToken ct = default` last; the four
@@ -187,6 +187,39 @@ A model-binding failure returns 400 with the same envelope, `message` = `"Valida
 and `data` = a field-to-messages dictionary keyed by the camelCase path the client sent
 (`reason`, `body.name`). Swagger UI is served at `/swagger` in Development only; the document
 is titled **EnterpriseHR API v1** and documents the controllers from the Api assembly.
+
+### Exception handling
+
+`ExceptionHandlingMiddleware` in `src/EnterpriseHR.Api/Middleware/` is the single place API
+failures become status codes. It is registered in the WebApp pipeline after `UseStaticFiles()`
+and before `UseRouting()`, which is early enough to cover routing, filters and controller
+execution, and inside the MVC exception handler so MVC pages keep their own handling.
+
+| Thrown | Status | `message` |
+| ------ | ------ | --------- |
+| `NotFoundException` | 404 | the exception message |
+| `BusinessRuleException` | 400 | the exception message |
+| `ConflictException` | 409 | the exception message |
+| `SqlException` 2627 / 2601 | 409 | duplicate-constraint sentence |
+| `SqlException` 547 | 400 | missing/in-use reference sentence |
+| `OperationCanceledException` with `RequestAborted` | none | no response; the client is gone |
+| anything else | 500 | `"An unexpected error occurred."` |
+
+The SQL numbers are a safety net: repositories translate them already, so a `SqlException`
+arriving at the host means one escaped, and that case is logged at `Error` even though the
+response is a clean 4xx. Only the 500 path logs the full exception (`LogError`); the response
+never carries a stack trace, an exception message or a SQL identifier. Each is written with
+`WriteAsJsonAsync` as `ApiResponse<object>.Fail(message)`, so `data` is `null` — the
+`data`-carrying variant stays reserved for model validation, whose `data` holds the field
+errors.
+
+Two guards keep it honest. If `Response.HasStarted` the middleware cannot rewrite the response,
+so it logs and rethrows rather than appending JSON to a partially sent body. And the whole
+middleware is skipped for any path outside `/api`: a non-API exception is rethrown to the MVC
+exception handler, so an MVC page still renders the developer exception page in Development
+and `/Home/Error` in Production. The same split applies to framework-generated statuses: a
+`UseWhen` branch on `/api` wraps only body-less 404 and 405 responses in the envelope, and MVC
+pages keep their plain 404 and their normal 405 behavior.
 
 ## Frontend and design system
 

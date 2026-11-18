@@ -1,5 +1,6 @@
 using System.Text.Json;
 using EnterpriseHR.Api.Controllers;
+using EnterpriseHR.Api.Middleware;
 using EnterpriseHR.Api.Models;
 using EnterpriseHR.DataAccess;
 using Microsoft.AspNetCore.Mvc;
@@ -88,6 +89,45 @@ else
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+
+// Registered ahead of routing so it can also catch what routing throws, and before the MVC
+// exception handler above so an API failure is answered with JSON instead of reaching that
+// HTML page. The middleware itself rethrows any non-/api request, which is what keeps MVC
+// pages on their own error handling.
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+// Framework-generated /api/** responses that carry no body (404 for an unknown route, 405 for
+// a wrong verb) get the standard envelope here. Wrapping the status, rather than the request,
+// means MVC pages are untouched: a 404 there is still the plain HTML 404, and a 405 still
+// follows the MVC pipeline.
+app.UseWhen(
+    ctx => ctx.Request.Path.StartsWithSegments("/api"),
+    api => api.Use(async (ctx, next) =>
+    {
+        await next();
+
+        if (ctx.Response.HasStarted || ctx.Response.ContentLength > 0)
+        {
+            return;
+        }
+
+        // Leave /api/** paths that Swagger or a future static endpoint answered alone.
+        if (ctx.Response.ContentType is not null)
+        {
+            return;
+        }
+
+        if (ctx.Response.StatusCode is StatusCodes.Status404NotFound or StatusCodes.Status405MethodNotAllowed)
+        {
+            var message = ctx.Response.StatusCode == StatusCodes.Status405MethodNotAllowed
+                ? "The HTTP method is not supported for this resource."
+                : "The requested resource was not found.";
+
+            ctx.Response.ContentType = "application/json; charset=utf-8";
+
+            await ctx.Response.WriteAsJsonAsync(ApiResponse<object>.Fail(message));
+        }
+    }));
 
 app.UseRouting();
 
