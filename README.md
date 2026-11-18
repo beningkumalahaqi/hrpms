@@ -16,7 +16,7 @@ modules over a single database:
 
 | Module | Project | Audience | Technology |
 | ------ | ------- | -------- | ---------- |
-| HR / admin dashboard | `EnterpriseHR.WebApp` | HR staff and administrators working in a browser | ASP.NET Core MVC, Razor Views, Bootstrap, Tag Helpers |
+| HR / admin dashboard | `EnterpriseHR.WebApp` | HR staff and administrators working in a browser | ASP.NET Core MVC, Razor Views, HR Workspace design system, Tag Helpers |
 | RESTful integration API | `EnterpriseHR.Api` | External systems and integration clients | ASP.NET Core Web API, controller-based endpoints, Swagger/OpenAPI |
 
 Both modules call the same `EnterpriseHR.DataAccess` project. Business rules live in
@@ -29,13 +29,13 @@ calculation logic.
 | ---- | ---------- |
 | Language | C# 12 |
 | Runtime / framework | .NET 8 (`net8.0`) |
-| Web application | ASP.NET Core MVC with Razor Views, Bootstrap, and Tag Helpers |
+| Web application | ASP.NET Core MVC with Razor Views and Tag Helpers, styled by the HR Workspace design system |
 | REST API | ASP.NET Core Web API, controller-based endpoints, Swagger/OpenAPI, global exception-handling middleware |
 | Database | Microsoft SQL Server 2022, database `EnterpriseHRDB`, run locally with Docker Compose |
 | Data access | Dapper (asynchronous methods only) with `Microsoft.Data.SqlClient` |
 | Database programming | Parameterized SQL, `IDbTransaction`, stored procedures, Dapper multi-mapping, `QueryMultipleAsync` |
 | Architecture | One solution, `EnterpriseHRSystem.sln`, with exactly four projects |
-| Frontend | Server-rendered Razor Views with Bootstrap (no SPA framework, no separate frontend app) |
+| Frontend | Server-rendered Razor Views styled with the exported HR Workspace design system in `design-system/` (custom CSS tokens, IBM Plex Sans). No Bootstrap, no SPA framework, no separate frontend app |
 | Local infrastructure | Docker Compose |
 | Documentation | Markdown README and docs |
 
@@ -60,7 +60,7 @@ EnterpriseHRSystem.sln
 | ------- | -------------- | ---------- |
 | `EnterpriseHR.Domain` | Entities, enums, value objects, domain validation and calculation rules. No database or web dependencies. | none |
 | `EnterpriseHR.DataAccess` | Dapper repositories, parameterized SQL, stored-procedure calls, mapping, and transaction handling. Owns the `Microsoft.Data.SqlClient` connection factory and connection-string configuration. | Domain |
-| `EnterpriseHR.WebApp` | ASP.NET Core MVC host. Razor Views, view models, controllers, Bootstrap layout, Tag Helpers. Calls DataAccess for all persistence. | Domain, DataAccess |
+| `EnterpriseHR.WebApp` | ASP.NET Core MVC host. Razor Views, view models, controllers, Tag Helpers, and the design-system layout. Calls DataAccess for all persistence. | Domain, DataAccess |
 | `EnterpriseHR.Api` | ASP.NET Core Web API host. Controller-based JSON endpoints, Swagger/OpenAPI documentation, global exception-handling middleware, DTOs. Calls DataAccess for all persistence. | Domain, DataAccess |
 
 `EnterpriseHR.DataAccess` is the single place where SQL is written. Neither host
@@ -72,6 +72,35 @@ its initial assignments, or recording an attendance correction alongside its aud
 row) run inside an `IDbTransaction` owned by the DataAccess layer. Read paths use
 Dapper's asynchronous APIs, and multi-result queries use `QueryMultipleAsync` with
 `ReadAsync` rather than several round trips.
+
+## Frontend and Design System
+
+The MVC dashboard does not use Bootstrap. The UI follows the exported **HR Workspace**
+design system in `design-system/`, which is the visual source of truth and outranks any
+framework default.
+
+| File | Role |
+| ---- | ---- |
+| `index.html` | Launcher / overview. A navigation entry, not a combined final screen. |
+| `design-system.html` | Component and token reference screen. |
+| `styles.css`, `design-system.css` | Tokens and component CSS. `:root` holds the palette (primary `#3730a3`), type scale, spacing, radii, and shadows. |
+| `app.js`, `design-system.js` | Interaction behavior to reproduce: filters, dialogs, copy actions, component states. |
+| `DESIGN-MANIFEST.json` | Machine-readable map of screens, tokens, required states, and viewports. |
+| `DESIGN-HANDOFF.md` | Fidelity contract: preserve geometry, tokens, copy, and states; drop prototype chrome. |
+
+Porting rules for the dashboard:
+
+- Copy the tokens into `src/EnterpriseHR.WebApp/wwwroot/css/` and keep the `:root`
+  variable names. Do not substitute a framework theme or a new palette.
+- One Razor view per screen. `index.html` is a launcher, so it is not copied wholesale
+  into a single view.
+- Forms, links, and validation use Tag Helpers on top of the design-system markup.
+  JavaScript stays plain browser scripts; there is no SPA, virtual DOM, or client-side
+  router.
+- Keep the exported responsive behavior and check 360x800, 390x844, 430x932, 600x960,
+  820x1180, 1024x768, 1366x768, 1440x900, and 1920x1080 with no horizontal overflow.
+- The export is reference material. Nothing from it is served by the application until
+  a screen or component is ported into a Razor view and static assets.
 
 ## Prerequisites
 
@@ -214,6 +243,7 @@ serving requests that touch the database.
 ├── .env.example                # template for local secrets
 ├── EnterpriseHRSystem.sln      # solution (T05)
 ├── db/                         # SQL init scripts, run by db-init
+├── design-system/              # exported HR Workspace UI reference (tokens, screens, states)
 ├── docs/                       # supporting documentation (created with the first design note)
 └── src/
     ├── EnterpriseHR.Domain/
@@ -236,6 +266,9 @@ serving requests that touch the database.
 Until T02 adds the first `db/0*.sql` script, the `db-init` service has nothing to run.
 It reports `No numbered SQL scripts found yet; skipping database initialization.` and
 exits with status 0. The `sqlserver` container is unaffected and can be used normally.
+
+The design system export in `design-system/` is static reference material at this
+stage. No Razor view or layout uses it yet; that starts when the solution exists (T05).
 
 ## Reset and Troubleshooting
 
@@ -310,6 +343,11 @@ Database access rules that apply to every feature added here:
   no string concatenation of user input.
 - `IDbTransaction` for operations that must be atomic across statements.
 - No EF Core, no ORM change tracking, no lazy loading.
+
+Frontend rules:
+
+- Server-rendered Razor Views only, styled from `design-system/`. No Bootstrap or other
+  CSS framework, no SPA, no client-side router.
 
 ## Documentation
 

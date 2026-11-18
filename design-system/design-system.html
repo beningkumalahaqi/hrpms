@@ -1,0 +1,1322 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Living design system reference for the HR Workspace enterprise administration prototype.">
+  <title>Design System | HR Workspace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+/* OD-LAYOUT-PRIMITIVES v1 - structure only: display, flex/grid, overflow, wrapping, ratio, geometry.
+   Put this @layer first; product CSS outside the layer wins ordinary layout rules.
+   Native hidden and closed-dialog states take precedence over component display rules. */
+@layer od-layout {
+  [hidden]:not([hidden="until-found" i]) { display: none !important; }
+  dialog:not([open]) { display: none !important; }
+
+  :where(.od-stack,.od-row,.od-row-top,.od-cluster,.od-grid,.od-field,.od-stat,.od-cell,.od-tile) > :where(*) { min-width: 0; }
+
+  .od-stack   { display: flex; flex-direction: column; gap: var(--od-gap, 8px); }
+  .od-row     { display: flex; align-items: center; gap: var(--od-gap, 8px); }
+  .od-row-top { display: flex; align-items: flex-start; gap: var(--od-gap, 8px); }
+  .od-cluster { display: flex; flex-wrap: wrap; align-items: center; gap: var(--od-gap, 8px); }
+  .od-fill    { flex: 1 1 0; min-width: 0; }
+  .od-fixed   { flex: none; }
+  .od-grid    { display: grid; gap: var(--od-gap, 12px); grid-template-columns: repeat(var(--od-cols, 3), minmax(0, 1fr)); }
+
+  .od-stat, .od-field, .od-cell { display: grid; gap: var(--od-gap, 2px); }
+  :where(.od-stat,.od-field,.od-cell) > :where(*) { display: block; }
+  .od-tile { display: grid; grid-template-rows: auto 1fr; }
+  :where(.od-tile) > :where(*) { display: block; }
+
+  .od-media { display: block; width: 100%; height: auto; aspect-ratio: var(--od-ratio, auto); }
+  .od-media-cover { object-fit: cover; }
+
+  .od-icon { display: inline-block; inline-size: var(--od-icon-size, 1em); block-size: var(--od-icon-size, 1em); flex: none; }
+
+  .od-truncate { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .od-clamp-2, .od-clamp-3 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+  .od-clamp-2 { -webkit-line-clamp: 2; }
+  .od-clamp-3 { -webkit-line-clamp: 3; }
+  .od-lines-2 { min-height: calc(2 * 1.4em); }
+  .od-nowrap  { white-space: nowrap; }
+  .od-keep    { word-break: keep-all; overflow-wrap: anywhere; }
+
+  .od-screen { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: 100%; }
+  .od-scroll { overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
+
+  .od-rail { display: flex; gap: var(--od-gap, 8px); overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none;
+             padding-inline: var(--od-rail-pad, 16px); scroll-padding-inline: var(--od-rail-pad, 16px); }
+  .od-rail::-webkit-scrollbar { display: none; }
+  :where(.od-rail) > :where(*) { flex: none; scroll-snap-align: start; }
+  :where(.od-rail) > :where(:last-child) { margin-inline-end: var(--od-rail-pad, 16px); }
+
+  .od-spacer { flex: none; visibility: hidden; pointer-events: none; }
+  .od-touch  { min-width: 44px; min-height: 44px; }
+}
+:root [hidden]:where(:not([hidden="until-found" i])) { display: none; }
+/* /OD-LAYOUT-PRIMITIVES v1 */
+  </style>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="design-system.css">
+  <script defer src="design-system.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+
+  <svg class="ds-sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20v-2.2A5.8 5.8 0 0 1 8.3 12h1.4a5.8 5.8 0 0 1 5.8 5.8V20M16 5.5a3.5 3.5 0 0 1 0 7M17.5 14a5 5 0 0 1 4 4.9V20"/></symbol>
+    <symbol id="i-briefcase" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13"/><path d="M8 7V4h8v3M3 12h18M10 12v2h4v-2"/></symbol>
+    <symbol id="i-building" viewBox="0 0 24 24"><path d="M4 21V4h11v17M15 9h5v12M2 21h20M8 8h3M8 12h3M8 16h3M18 13v2M18 18v2"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path d="m8 5-6 7 6 7M16 5l6 7-6 7M14 3l-4 18"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 6v5h-5M4 18v-5h5M6.1 9a7 7 0 0 1 11.6-2.6L20 11M4 13l2.3 4.6A7 7 0 0 0 18 15"/></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m5 5 14 14M19 5 5 19"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12"/><path d="M16 8V4H4v12h4"/></symbol>
+    <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-cancel" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 8 8 8M16 8l-8 8"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v5M12 17v.5"/></symbol>
+    <symbol id="i-sort" viewBox="0 0 24 24"><path d="m8 6 4-4 4 4M12 2v20M8 18l4 4 4-4"/></symbol>
+    <symbol id="i-sort-asc" viewBox="0 0 24 24"><path d="M12 19V5m-5 5 5-5 5 5"/></symbol>
+    <symbol id="i-sort-desc" viewBox="0 0 24 24"><path d="M12 5v14m-5-5 5 5 5-5"/></symbol>
+    <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="M19 12H5m6-6-6 6 6 6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+  </svg>
+
+  <div class="app-shell">
+    <aside class="sidebar" id="dsSidebar" aria-label="Design system navigation">
+      <div class="brand od-stack">
+        <span class="brand-name">HR Workspace</span>
+        <span class="brand-caption">Design system</span>
+      </div>
+      <nav class="side-nav" aria-label="Workspace">
+        <a class="nav-item nav-link" href="index.html">
+          <svg class="od-icon od-icon-large" aria-hidden="true"><use href="#i-dashboard"/></svg>
+          <span>Workspace</span>
+        </a>
+        <a class="nav-item nav-link is-active" href="design-system.html" aria-current="page">
+          <svg class="od-icon od-icon-large" aria-hidden="true"><use href="#i-layers"/></svg>
+          <span>Design system</span>
+        </a>
+      </nav>
+      <div class="ds-sidebar-links">
+        <p class="ds-sidebar-label">Contents</p>
+        <a class="nav-item nav-link" href="#foundations">Foundations</a>
+        <a class="nav-item nav-link" href="#components">Components</a>
+        <a class="nav-item nav-link" href="#patterns">Patterns</a>
+        <a class="nav-item nav-link" href="#usage">Usage rules</a>
+      </div>
+      <div class="sidebar-note od-stack">
+        <strong>Living reference</strong>
+        <p>Documented from the tokens and components shipped in this workspace. Sample records are labeled throughout.</p>
+      </div>
+    </aside>
+    <button class="nav-scrim" id="dsNavScrim" type="button" aria-label="Close navigation" hidden></button>
+    <div class="workspace">
+      <header class="topbar">
+        <button class="button ghost menu-button" id="dsMenuButton" type="button" aria-controls="dsSidebar" aria-expanded="false">
+          <svg class="od-icon od-icon-large" aria-hidden="true"><use href="#i-menu"/></svg>
+          <span>Menu</span>
+        </button>
+        <div class="topbar-context od-stack">
+          <span class="topbar-kicker">Living reference</span>
+          <strong>Design system</strong>
+        </div>
+        <div class="topbar-meta od-row">
+          <span class="data-chip">Version 1.0</span>
+          <div class="user-meta od-stack">
+            <span>HR Workspace</span>
+            <small>Internal standard</small>
+          </div>
+        </div>
+      </header>
+      <main class="main-content" id="main-content" tabindex="-1">
+        <div class="page ds-page">
+          <header class="page-header">
+            <div class="page-heading">
+              <nav class="breadcrumbs" aria-label="Breadcrumb">
+                <a href="index.html">HR Workspace</a>
+                <span aria-hidden="true">/</span>
+                <span>Design system</span>
+              </nav>
+              <h1>Design system</h1>
+              <p class="page-description">The shared tokens, components, and interaction patterns used by every workspace surface. Specimens are live and draw from the same stylesheet as the application.</p>
+            </div>
+            <div class="page-actions">
+              <a class="button secondary" href="index.html">
+                <svg class="od-icon od-icon-control" aria-hidden="true"><use href="#i-arrow-left"/></svg>
+                <span>Back to workspace</span>
+              </a>
+            </div>
+          </header>
+
+          <div class="ds-toc-mobile">
+            <label for="dsSectionSelect">Jump to a section</label>
+            <select id="dsSectionSelect">
+              <optgroup label="Overview">
+                <option value="overview">Purpose and coverage</option>
+              </optgroup>
+              <optgroup label="Foundations">
+                <option value="color">Color</option>
+                <option value="type">Typography</option>
+                <option value="spacing">Spacing and shape</option>
+              </optgroup>
+              <optgroup label="Components">
+                <option value="shell">Application shell</option>
+                <option value="page-header">Page headers</option>
+                <option value="buttons">Buttons</option>
+                <option value="forms">Form fields</option>
+                <option value="badges">Status badges</option>
+                <option value="stats">Statistic cards</option>
+                <option value="tables">Data tables</option>
+                <option value="dialogs">Dialogs and toasts</option>
+                <option value="states">Empty, loading, and error states</option>
+                <option value="api-pattern">API documentation</option>
+              </optgroup>
+              <optgroup label="Patterns">
+                <option value="validation">Salary validation</option>
+                <option value="workload">Allocation warning</option>
+                <option value="confirmation">Sensitive actions</option>
+              </optgroup>
+              <optgroup label="Usage">
+                <option value="accessibility">Accessibility</option>
+                <option value="responsive">Responsive behavior</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <div class="ds-layout">
+            <div class="ds-content">
+              <section class="ds-section" id="overview" aria-labelledby="overviewTitle">
+                <div class="ds-section-head">
+                  <span class="ds-index">01</span>
+                  <div>
+                    <p class="eyebrow">Overview</p>
+                    <h2 id="overviewTitle">One system across every workspace surface</h2>
+                    <p>This page is the working reference for the dashboard, employee management, project management, and API documentation views. It documents the shipped system, so a component seen here behaves the same way in the application.</p>
+                  </div>
+                </div>
+
+                <div class="ds-overview">
+                  <div class="ds-overview-lead">
+                    <h3>What this reference covers</h3>
+                    <p>Foundations define the visual variables. Components show the reusable pieces. Patterns explain how those pieces combine for validation, workload limits, and sensitive actions. Every sample value is labeled as demonstration data.</p>
+                    <div class="ds-chip-row">
+                      <span class="badge method">Light theme</span>
+                      <span class="badge active">
+                        <svg class="od-icon od-icon-status" aria-hidden="true"><use href="#i-check-circle"/></svg>
+                        <span>AA contrast target</span>
+                      </span>
+                      <span class="badge planning">
+                        <svg class="od-icon od-icon-status" aria-hidden="true"><use href="#i-clock"/></svg>
+                        <span>8px rhythm</span>
+                      </span>
+                      <span class="badge inactive">Sample data</span>
+                    </div>
+                  </div>
+                  <dl class="ds-fact-list">
+                    <div>
+                      <dt>Typeface</dt>
+                      <dd>IBM Plex Sans<span>Chosen for compact operational reading and legible financial figures.</span></dd>
+                    </div>
+                    <div>
+                      <dt>Primary accent</dt>
+                      <dd>Deep indigo, #3730a3<span>Reserved for action, selection, and focus.</span></dd>
+                    </div>
+                    <div>
+                      <dt>Density</dt>
+                      <dd>8px spacing, 44px controls<span>Dense tables retain comfortable targets and clear hierarchy.</span></dd>
+                    </div>
+                  </dl>
+                </div>
+
+                <div class="ds-principles" aria-label="Design principles">
+                  <article class="ds-principle">
+                    <span class="ds-principle-index">01</span>
+                    <div>
+                      <h3>Action has one color</h3>
+                      <p>Indigo marks the primary action, the active route, and focus. Everything else stays neutral so the next action is easy to find.</p>
+                    </div>
+                  </article>
+                  <article class="ds-principle">
+                    <span class="ds-principle-index">02</span>
+                    <div>
+                      <h3>Status is never color alone</h3>
+                      <p>Active, planning, completed, cancelled, and budget states pair their color with a label and a meaningful icon.</p>
+                    </div>
+                  </article>
+                  <article class="ds-principle">
+                    <span class="ds-principle-index">03</span>
+                    <div>
+                      <h3>Financial data reads straight down</h3>
+                      <p>Currency and percentage columns use tabular numerals, right alignment, and a consistent monthly USD format.</p>
+                    </div>
+                  </article>
+                </div>
+              </section>
+
+              <section class="ds-section" id="foundations" aria-labelledby="foundationsTitle">
+                <div class="ds-section-head">
+                  <span class="ds-index">02</span>
+                  <div>
+                    <p class="eyebrow">Foundations</p>
+                    <h2 id="foundationsTitle">Tokens that keep every page aligned</h2>
+                    <p>Colors, type, spacing, shape, and elevation are defined once in the shared style layer. Select any color token to copy its declaration.</p>
+                  </div>
+                </div>
+
+                <section class="ds-subsection" id="color" aria-labelledby="colorTitle">
+                  <div class="ds-subsection-head">
+                    <h3 id="colorTitle">Color</h3>
+                    <p>Neutral surfaces carry the interface; indigo and semantic colors carry meaning.</p>
+                  </div>
+                  <div class="ds-token-groups">
+                    <section class="ds-token-group" aria-labelledby="brandColorsTitle">
+                      <h4 id="brandColorsTitle">Brand</h4>
+                      <button class="ds-token-row" type="button" data-ds-copy-token data-token="--color-primary" data-value="#3730a3" aria-label="Copy token --color-primary">
+                        <span class="ds-token-swatch" style="background: var(--color-primary)"></span>
+                        <code class="ds-token-name">--color-primary</code>
+                        <span class="ds-token-value">#3730a3</span>
+                        <svg class="od-icon od-icon-control ds-token-copy" aria-hidden="true"><use href="#i-copy"/></svg>
+                      </button>
+                      <button class="ds-token-row" type="button" data-ds-copy-token data-token="--color-primary-hover" data-value="#2a247f" aria-label="Copy token --color-primary-hover">
+                        <span class="ds-token-swatch" style="background: var(--color-primary-hover)"></span>
+                        <code class="ds-token-name">--color-primary-hover</code>
+                        <span class="ds-token-value">#2a247f</span>
+                        <svg class="od-icon od-icon-control ds-token-copy" aria-hidden="true"><use href="#i-copy"/></svg>
+                      </button>
+                      <button class="ds-token-row" type="button" data-ds-copy-token data-token="--color-primary-soft" data-value="#ededfa" aria-label="Copy token --color-primary-soft">
+                        <span class="ds-token-swatch" style="background: var(--color-primary-soft)"></span>
+                        <code class="ds-token-name">--color-primary-soft</code>
+                        <span class="ds-token-value">#ededfa</span>
+                        <svg class="od-icon od-icon-control ds-token-copy" aria-hidden="true"><use href="#i-copy"/></svg>
+                      </button>
+                    </section>
+
+                    <section class="ds-token-group" aria-labelledby="surfaceColorsTitle">
+                      <h4 id="surfaceColorsTitle">Surface and border</h4>
+                      <button class="ds-token-row" type="button" data-ds-copy-token data-token="--color-background" data-value="#f4f6f9" aria-label="Copy token --color-background">
+                        <span class="ds-token-swatch" style="background: var(--color-background)"></span>
+                        <code class="ds-token-name">--color-background</code>
+                        <span class="ds-token-value">#f4f6f9</span>
+                        <svg class="od-icon od-icon-control ds-token-copy" aria-hidden="true"><use href="#i-copy"/></svg>
+                      </button>
+                      <button class="ds-token-row" type="button" data-ds-copy-token data-token="--color-surface" data-value="#ffffff" aria-label="Copy token --color-surface">
+                        <span class="ds-token-swatch" style="background: var(--color-surface)"></span>
+                        <code class="ds-token-name">--color-surface</code>
+                        <span class="ds-token-value">#ffffff</span>
+                        <svg class="od-icon od-icon-control ds-token-copy" aria-hidden="true"><use href="#i-copy"/></svg>
+                      </button>
+                      <button class="ds-token-row" type="button" data-ds-copy-token data-token="--color-surface-subtle" data-value="#f8f9fb" aria-label="Copy token --color-surface-subtle">
+                        <span class="ds-token-swatch" style="background: var(--color-surface-subtle)"></span>
+                        <code class="ds-token-name">--color-surface-subtle</code>
+                        <span class="ds-token-value">#f8f9fb</span>
+                        <svg class="od-icon od-icon-control ds-token-copy" aria-hidden="true"><use href="#i-copy"/></svg>
+                      </button>
+                      <button class="ds-token-row" type="button" data-ds-copy-token data-token="--color-border" data-value="#d7dce4" aria-label="Copy token --color-border">
+                        <span class="ds-token-swatch" style="background: var(--color-border)"></span>
+                        <code class="ds-token-name">--color-border</code>
+                        <span class="ds-token-value">#d7dce4</span>
+                        <svg class="od-icon od-icon-control ds-token-copy" aria-hidden="true"><use href="#i-copy"/></svg>
+                      </button>
+                      <button class="ds-token-row" type="button" data-ds-copy-token data-token="--color-border-strong" data-value="#8792a4" aria-label="Copy token --color-border-strong">
+                        <span class="ds-token-swatch" style="background: var(--color-border-strong)"></span>
+                        <code class="ds-token-name">--color-border-strong</code>
+                        <span class="ds-token-value">#8792a4</span>
+                        <svg class="od-icon od-icon-control ds-token-copy" aria-hidden="true"><use href="#i-copy"/></svg>
+                      </button>
+                    </section>
+
+                    <section class="ds-token-group" aria-labelledby="textColorsTitle">
+                      <h4 id="textColorsTitle">Text</h4>
+                      <button class="ds-token-row" type="button" data-ds-copy-token data-token="--color-text" data-value="#172033" aria-label="Copy token --color-text">
+                        <span class="ds-token-swatch" style="background: var(--color-text)"></span>
+                        <code class="ds-token-name">--color-text</code>
+                        <span class="ds-token-value">#172033</span>
+                        <svg class="od-icon od-icon-control ds-token-copy" aria-hidden="true"><use href="#i-copy"/></svg>
+                      </button>
+                      <button class="ds-token-row" type="button" data-ds-copy-token data-token="--color-text-secondary" data-value="#515d70" aria-label="Copy token --color-text-secondary">
+                        <span class="ds-token-swatch" style="background: var(--color-text-secondary)"></span>
+                        <code class="ds-token-name">--color-text-secondary</code>
+                        <span class="ds-token-value">#515d70</span>
+                        <svg class="od-icon od-icon-control ds-token-copy" aria-hidden="true"><use href="#i-copy"/></svg>
+                      </button>
+                    </section>
+
+                    <section class="ds-token-group" aria-labelledby="statusColorsTitle">
+                      <h4 id="statusColorsTitle">Status</h4>
+                      <button class="ds-token-row" type="button" data-ds-copy-token data-token="--color-success" data-value="#17633a" aria-label="Copy token --color-success">
+                        <span class="ds-token-swatch" style="background: var(--color-success)"></span>
+                        <code class="ds-token-name">--color-success</code>
+                        <span class="ds-token-value">#17633a</span>
+                        <svg class="od-icon od-icon-control ds-token-copy" aria-hidden="true"><use href="#i-copy"/></svg>
+                      </button>
+                      <button class="ds-token-row" type="button" data-ds-copy-token data-token="--color-success-bg" data-value="#e9f5ed" aria-label="Copy token --color-success-bg">
+                        <span class="ds-token-swatch" style="background: var(--color-success-bg)"></span>
+                        <code class="ds-token-name">--color-success-bg</code>
+                        <span class="ds-token-value">#e9f5ed</span>
+                        <svg class="od-icon od-icon-control ds-token-copy" aria-hidden="true"><use href="#i-copy"/></svg>
+                      </button>
+                      <button class="ds-token-row" type="button" data-ds-copy-token data-token="--color-warning" data-value="#7c470d" aria-label="Copy token --color-warning">
+                        <span class="ds-token-swatch" style="background: var(--color-warning)"></span>
+                        <code class="ds-token-name">--color-warning</code>
+                        <span class="ds-token-value">#7c470d</span>
+                        <svg class="od-icon od-icon-control ds-token-copy" aria-hidden="true"><use href="#i-copy"/></svg>
+                      </button>
+                      <button class="ds-token-row" type="button" data-ds-copy-token data-token="--color-warning-bg" data-value="#fff3d8" aria-label="Copy token --color-warning-bg">
+                        <span class="ds-token-swatch" style="background: var(--color-warning-bg)"></span>
+                        <code class="ds-token-name">--color-warning-bg</code>
+                        <span class="ds-token-value">#fff3d8</span>
+                        <svg class="od-icon od-icon-control ds-token-copy" aria-hidden="true"><use href="#i-copy"/></svg>
+                      </button>
+                      <button class="ds-token-row" type="button" data-ds-copy-token data-token="--color-error" data-value="#a32131" aria-label="Copy token --color-error">
+                        <span class="ds-token-swatch" style="background: var(--color-error)"></span>
+                        <code class="ds-token-name">--color-error</code>
+                        <span class="ds-token-value">#a32131</span>
+                        <svg class="od-icon od-icon-control ds-token-copy" aria-hidden="true"><use href="#i-copy"/></svg>
+                      </button>
+                      <button class="ds-token-row" type="button" data-ds-copy-token data-token="--color-error-bg" data-value="#fdecef" aria-label="Copy token --color-error-bg">
+                        <span class="ds-token-swatch" style="background: var(--color-error-bg)"></span>
+                        <code class="ds-token-name">--color-error-bg</code>
+                        <span class="ds-token-value">#fdecef</span>
+                        <svg class="od-icon od-icon-control ds-token-copy" aria-hidden="true"><use href="#i-copy"/></svg>
+                      </button>
+                      <button class="ds-token-row" type="button" data-ds-copy-token data-token="--color-info" data-value="#245b96" aria-label="Copy token --color-info">
+                        <span class="ds-token-swatch" style="background: var(--color-info)"></span>
+                        <code class="ds-token-name">--color-info</code>
+                        <span class="ds-token-value">#245b96</span>
+                        <svg class="od-icon od-icon-control ds-token-copy" aria-hidden="true"><use href="#i-copy"/></svg>
+                      </button>
+                      <button class="ds-token-row" type="button" data-ds-copy-token data-token="--color-info-bg" data-value="#eaf2fb" aria-label="Copy token --color-info-bg">
+                        <span class="ds-token-swatch" style="background: var(--color-info-bg)"></span>
+                        <code class="ds-token-name">--color-info-bg</code>
+                        <span class="ds-token-value">#eaf2fb</span>
+                        <svg class="od-icon od-icon-control ds-token-copy" aria-hidden="true"><use href="#i-copy"/></svg>
+                      </button>
+                    </section>
+                  </div>
+                  <div class="ds-guidance-grid">
+                    <div>
+                      <h4>Use indigo for action</h4>
+                      <p>Primary buttons, active routes, links, and focus rings. Do not use it as a decorative fill.</p>
+                    </div>
+                    <div>
+                      <h4>Keep status pairs together</h4>
+                      <p>Each semantic color has a soft background token for badges, rows, and inline feedback.</p>
+                    </div>
+                    <div>
+                      <h4>Neutral first</h4>
+                      <p>Background, surface, and border tokens carry most of the interface without adding visual noise.</p>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="ds-subsection" id="type" aria-labelledby="typeTitle">
+                  <div class="ds-subsection-head">
+                    <h3 id="typeTitle">Typography</h3>
+                    <p>IBM Plex Sans at a compact scale, with tabular numerals for financial columns.</p>
+                  </div>
+                  <div class="ds-type-scale">
+                    <div class="ds-type-row">
+                      <span class="ds-type-meta"><code>--text-3xl</code><span>Page title, clamp 26px to 30px</span></span>
+                      <span class="ds-type-sample ds-type-3xl">Department budget summary</span>
+                    </div>
+                    <div class="ds-type-row">
+                      <span class="ds-type-meta"><code>--text-2xl</code><span>Section heading, 24px</span></span>
+                      <span class="ds-type-sample ds-type-2xl">Workforce and financial overview</span>
+                    </div>
+                    <div class="ds-type-row">
+                      <span class="ds-type-meta"><code>--text-xl</code><span>Panel heading, 20px</span></span>
+                      <span class="ds-type-sample ds-type-xl">Assigned team members</span>
+                    </div>
+                    <div class="ds-type-row">
+                      <span class="ds-type-meta"><code>--text-lg</code><span>Subheading, 18px</span></span>
+                      <span class="ds-type-sample ds-type-lg">Employment status and workplace details</span>
+                    </div>
+                    <div class="ds-type-row">
+                      <span class="ds-type-meta"><code>--text-base</code><span>Body copy, 16px</span></span>
+                      <span class="ds-type-sample ds-type-base">Monthly salary expenses are compared with the approved budget for each department.</span>
+                    </div>
+                    <div class="ds-type-row">
+                      <span class="ds-type-meta"><code>--text-sm</code><span>Table and control text, 14px</span></span>
+                      <span class="ds-type-sample ds-type-sm">Active employees with project allocations in the current month.</span>
+                    </div>
+                    <div class="ds-type-row">
+                      <span class="ds-type-meta"><code>--text-xs</code><span>Metadata and labels, 12px</span></span>
+                      <span class="ds-type-sample ds-type-xs">Sample data, updated for November 2026</span>
+                    </div>
+                  </div>
+                  <div class="ds-weight-grid" aria-label="Font weights">
+                    <div class="ds-weight"><strong style="font-weight: 400">Aa</strong><span>400 Regular, body copy</span></div>
+                    <div class="ds-weight"><strong style="font-weight: 500">Aa</strong><span>500 Medium, labels and data</span></div>
+                    <div class="ds-weight"><strong style="font-weight: 600">Aa</strong><span>600 Semibold, controls and headings</span></div>
+                    <div class="ds-weight"><strong style="font-weight: 700">Aa</strong><span>700 Bold, brand and page titles</span></div>
+                  </div>
+                  <div class="ds-guidance-grid">
+                    <div>
+                      <h4>Reading measure</h4>
+                      <p>Body text sits between 65 and 75 characters per line at 1.55 line height.</p>
+                    </div>
+                    <div>
+                      <h4>Table text</h4>
+                      <p>Tables use 14px text with 12px metadata, keeping five to seven columns scannable.</p>
+                    </div>
+                    <div>
+                      <h4>Numbers</h4>
+                      <p>Salary and percentage columns use tabular numerals and right alignment.</p>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="ds-subsection" id="spacing" aria-labelledby="spacingTitle">
+                  <div class="ds-subsection-head">
+                    <h3 id="spacingTitle">Spacing, shape, and elevation</h3>
+                    <p>An 8px rhythm with a 4px half step and three deliberate corner radii.</p>
+                  </div>
+                  <div class="ds-spacing-list" aria-label="Spacing scale">
+                    <div class="ds-spacing-row"><code>--space-half</code><span>4px</span><span class="ds-space-bar" style="--bar: var(--space-half)"></span></div>
+                    <div class="ds-spacing-row"><code>--space-1</code><span>8px</span><span class="ds-space-bar" style="--bar: var(--space-1)"></span></div>
+                    <div class="ds-spacing-row"><code>--space-2</code><span>16px</span><span class="ds-space-bar" style="--bar: var(--space-2)"></span></div>
+                    <div class="ds-spacing-row"><code>--space-3</code><span>24px</span><span class="ds-space-bar" style="--bar: var(--space-3)"></span></div>
+                    <div class="ds-spacing-row"><code>--space-4</code><span>32px</span><span class="ds-space-bar" style="--bar: var(--space-4)"></span></div>
+                    <div class="ds-spacing-row"><code>--space-5</code><span>40px</span><span class="ds-space-bar" style="--bar: var(--space-5)"></span></div>
+                    <div class="ds-spacing-row"><code>--space-6</code><span>48px</span><span class="ds-space-bar" style="--bar: var(--space-6)"></span></div>
+                  </div>
+                  <div class="ds-geometry-grid">
+                    <div class="ds-geometry">
+                      <h4>Corner radius</h4>
+                      <p>Small for badges and inputs, medium for controls, large for panels.</p>
+                      <div class="ds-radius-row">
+                        <div class="ds-radius-sample"><span class="ds-radius-shape sm"></span><code>--radius-sm</code><span>6px</span></div>
+                        <div class="ds-radius-sample"><span class="ds-radius-shape md"></span><code>--radius-md</code><span>8px</span></div>
+                        <div class="ds-radius-sample"><span class="ds-radius-shape lg"></span><code>--radius-lg</code><span>12px</span></div>
+                      </div>
+                    </div>
+                    <div class="ds-geometry">
+                      <h4>Control and icon sizing</h4>
+                      <p>Every clickable control reaches the 44px target.</p>
+                      <div class="ds-size-list">
+                        <div class="ds-size-row"><code>--control-height</code><span>44px</span></div>
+                        <div class="ds-size-row"><code>--icon-control</code><span>18px</span></div>
+                        <div class="ds-size-row"><code>--icon-large</code><span>20px</span></div>
+                        <div class="ds-size-row"><code>--icon-status</code><span>14px</span></div>
+                      </div>
+                    </div>
+                    <div class="ds-geometry ds-geometry-wide">
+                      <h4>Elevation</h4>
+                      <p>Shadow marks modal elevation only. Cards stay flat with a hairline border.</p>
+                      <div class="ds-shadow-demo">Dialog elevation, 20px blur at 18% neutral ink</div>
+                    </div>
+                  </div>
+                </section>
+              </section>
+
+              <section class="ds-section" id="components" aria-labelledby="componentsTitle">
+                <div class="ds-section-head">
+                  <span class="ds-index">03</span>
+                  <div>
+                    <p class="eyebrow">Components</p>
+                    <h2 id="componentsTitle">Reusable pieces, shown in their working states</h2>
+                    <p>These specimens use the same classes as the application. Interactive examples are connected to real local behavior.</p>
+                  </div>
+                </div>
+
+                <section class="ds-subsection" id="shell" aria-labelledby="shellTitle">
+                  <div class="ds-subsection-head">
+                    <h3 id="shellTitle">Application shell</h3>
+                    <p>Persistent desktop sidebar with a labeled mobile drawer and a shared top bar.</p>
+                  </div>
+                  <div class="ds-specimen">
+                    <div class="ds-specimen-head">
+                      <div>
+                        <h4 class="ds-specimen-title">Sidebar and top navigation</h4>
+                        <p>One active route, one workspace context, and a clear data label.</p>
+                      </div>
+                      <code class="ds-code">sidebar + topbar</code>
+                    </div>
+                    <div class="ds-specimen-body">
+                      <div class="ds-shell-demo">
+                        <div class="ds-demo-sidebar">
+                          <div class="brand od-stack">
+                            <span class="brand-name">HR Workspace</span>
+                            <span class="brand-caption">People and projects</span>
+                          </div>
+                          <nav class="side-nav" aria-label="Shell preview navigation">
+                            <div class="nav-item is-active">
+                              <svg class="od-icon od-icon-large" aria-hidden="true"><use href="#i-dashboard"/></svg>
+                              <span>Dashboard</span>
+                            </div>
+                            <div class="nav-item">
+                              <svg class="od-icon od-icon-large" aria-hidden="true"><use href="#i-users"/></svg>
+                              <span>Employees</span>
+                            </div>
+                            <div class="nav-item">
+                              <svg class="od-icon od-icon-large" aria-hidden="true"><use href="#i-briefcase"/></svg>
+                              <span>Projects</span>
+                            </div>
+                            <div class="nav-item">
+                              <svg class="od-icon od-icon-large" aria-hidden="true"><use href="#i-code"/></svg>
+                              <span>API Documentation</span>
+                            </div>
+                          </nav>
+                        </div>
+                        <div class="ds-demo-main">
+                          <div class="topbar ds-demo-topbar">
+                            <div class="topbar-context od-stack">
+                              <span class="topbar-kicker">Enterprise administration</span>
+                              <strong>Dashboard</strong>
+                            </div>
+                            <div class="topbar-meta od-row">
+                              <span class="data-chip">Sample data</span>
+                              <div class="user-meta od-stack">
+                                <span>HR Administrator</span>
+                                <small>Workspace access</small>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="ds-demo-content">
+                            <div>
+                              <h3>Workforce overview</h3>
+                              <p>Active employees, projects, and monthly salary expenses.</p>
+                            </div>
+                            <div class="ds-demo-metrics">
+                              <div class="ds-demo-metric"><span>Employees</span><strong>15</strong></div>
+                              <div class="ds-demo-metric"><span>Active projects</span><strong>4</strong></div>
+                              <div class="ds-demo-metric"><span>Departments</span><strong>5</strong></div>
+                            </div>
+                            <div class="ds-code-bar" aria-hidden="true"><span></span><span></span><span></span></div>
+                          </div>
+                        </div>
+                      </div>
+                      <p class="ds-note"><strong>Responsive rule:</strong> below 1024px the sidebar becomes a labeled drawer. The Menu control toggles it, the scrim closes it, and focus returns to the control.</p>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="ds-subsection" id="page-header" aria-labelledby="pageHeaderTitle">
+                  <div class="ds-subsection-head">
+                    <h3 id="pageHeaderTitle">Page headers and breadcrumbs</h3>
+                    <p>Context, title, description, and one primary action.</p>
+                  </div>
+                  <div class="ds-specimen">
+                    <div class="ds-specimen-head">
+                      <div>
+                        <h4 class="ds-specimen-title">Directory header</h4>
+                        <p>Actions wrap below the heading on small screens.</p>
+                      </div>
+                      <code class="ds-code">.page-header</code>
+                    </div>
+                    <div class="ds-specimen-body">
+                      <div class="page-header">
+                        <div class="page-heading">
+                          <nav class="breadcrumbs" aria-label="Breadcrumb example">
+                            <a href="index.html">Workspace</a>
+                            <span aria-hidden="true">/</span>
+                            <span>Employee Management</span>
+                          </nav>
+                          <h2 class="ds-page-title">Employee Management</h2>
+                          <p class="page-description">Search employee records, maintain workplace details, and manage employment status.</p>
+                        </div>
+                        <div class="page-actions">
+                          <button class="button secondary" type="button" data-ds-toast="info">
+                            <svg class="od-icon od-icon-control" aria-hidden="true"><use href="#i-refresh"/></svg>
+                            <span>Refresh sample</span>
+                          </button>
+                          <button class="button primary" type="button" data-ds-open="form">
+                            <svg class="od-icon od-icon-control" aria-hidden="true"><use href="#i-plus"/></svg>
+                            <span>Add employee</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="ds-subsection" id="buttons" aria-labelledby="buttonsTitle">
+                  <div class="ds-subsection-head">
+                    <h3 id="buttonsTitle">Buttons</h3>
+                    <p>One primary action per view. Destructive actions require confirmation.</p>
+                  </div>
+                  <div class="ds-specimen">
+                    <div class="ds-specimen-head">
+                      <div>
+                        <h4 class="ds-specimen-title">Variants, icon buttons, and disabled states</h4>
+                        <p>Try any enabled control. Each has a real local response.</p>
+                      </div>
+                      <code class="ds-code">.button</code>
+                    </div>
+                    <div class="ds-specimen-body">
+                      <div class="ds-button-grid">
+                        <div class="ds-button-group">
+                          <span class="ds-button-label">Primary</span>
+                          <div class="ds-button-row">
+                            <button class="button primary" type="button" data-ds-open="form">
+                              <svg class="od-icon od-icon-control" aria-hidden="true"><use href="#i-plus"/></svg>
+                              <span>Add employee</span>
+                            </button>
+                          </div>
+                          <p class="ds-note">The single committing action in a view.</p>
+                        </div>
+                        <div class="ds-button-group">
+                          <span class="ds-button-label">Secondary</span>
+                          <div class="ds-button-row">
+                            <button class="button secondary" type="button" data-ds-toast="info">
+                              <svg class="od-icon od-icon-control" aria-hidden="true"><use href="#i-refresh"/></svg>
+                              <span>Refresh sample</span>
+                            </button>
+                          </div>
+                          <p class="ds-note">Supporting actions and non-destructive exits.</p>
+                        </div>
+                        <div class="ds-button-group">
+                          <span class="ds-button-label">Danger</span>
+                          <div class="ds-button-row">
+                            <button class="button danger" type="button" data-ds-open="confirm">Deactivate employee</button>
+                          </div>
+                          <p class="ds-note">Opens a confirmation dialog before the change.</p>
+                        </div>
+                        <div class="ds-button-group">
+                          <span class="ds-button-label">Ghost and text</span>
+                          <div class="ds-button-row">
+                            <button class="button ghost" type="button" data-ds-open="form">Preview form</button>
+                            <button class="button text" type="button" data-ds-reveal="#dsTextResult" aria-expanded="false" aria-controls="dsTextResult">View sample record</button>
+                          </div>
+                          <p class="ds-note">Low-emphasis actions that stay within the row.</p>
+                        </div>
+                        <div class="ds-button-group">
+                          <span class="ds-button-label">Icon button</span>
+                          <div class="ds-button-row">
+                            <button class="icon-button" type="button" data-ds-toast="success" aria-label="Refresh sample data">
+                              <svg class="od-icon od-icon-large" aria-hidden="true"><use href="#i-refresh"/></svg>
+                            </button>
+                          </div>
+                          <p class="ds-note">Always carries an accessible name.</p>
+                        </div>
+                        <div class="ds-button-group">
+                          <span class="ds-button-label">Disabled</span>
+                          <div class="ds-button-row">
+                            <button class="button primary" type="button" disabled>Save employee</button>
+                            <button class="button secondary" type="button" disabled>Cancel</button>
+                          </div>
+                          <p class="ds-note">Reduced contrast signals unavailable action.</p>
+                        </div>
+                      </div>
+                      <div class="ds-reveal" id="dsTextResult" hidden>
+                        <strong>Sample record:</strong> Lena Fischer, EMP-014, Marketing, Content Strategist, $4,300 monthly salary, Active.
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="ds-subsection" id="forms" aria-labelledby="formsTitle">
+                  <div class="ds-subsection-head">
+                    <h3 id="formsTitle">Form fields, search, and filters</h3>
+                    <p>Labels stay visible, help sits below the control, and related options stay in sync.</p>
+                  </div>
+                  <div class="ds-specimen">
+                    <div class="ds-specimen-head">
+                      <div>
+                        <h4 class="ds-specimen-title">Search and dependent selects</h4>
+                        <p>Search filters the preview list. Department drives position and manager.</p>
+                      </div>
+                      <code class="ds-code">.field</code>
+                    </div>
+                    <div class="ds-specimen-body">
+                      <div class="ds-form-demo">
+                        <div class="field od-field ds-span-full">
+                          <label for="dsEmployeeSearch">Search employees</label>
+                          <div class="input-prefix search-control">
+                            <svg class="od-icon od-icon-control" aria-hidden="true"><use href="#i-search"/></svg>
+                            <input id="dsEmployeeSearch" type="search" placeholder="Name or employee number" autocomplete="off" aria-describedby="dsEmployeeSearchHelp">
+                          </div>
+                          <small class="field-help" id="dsEmployeeSearchHelp">Matches the employee name or employee number.</small>
+                        </div>
+                        <div class="field od-field">
+                          <label for="dsDepartment">Department</label>
+                          <select id="dsDepartment">
+                            <option value="">Select department</option>
+                            <option value="Engineering">Engineering</option>
+                            <option value="Operations">Operations</option>
+                            <option value="Finance">Finance</option>
+                            <option value="People">People</option>
+                            <option value="Marketing">Marketing</option>
+                          </select>
+                        </div>
+                        <div class="field od-field">
+                          <label for="dsPosition">Position</label>
+                          <select id="dsPosition" disabled>
+                            <option value="">Select a department first</option>
+                          </select>
+                        </div>
+                        <div class="field od-field">
+                          <label for="dsManager">Manager</label>
+                          <select id="dsManager" disabled>
+                            <option value="">Select a department first</option>
+                          </select>
+                          <small class="field-help">Options follow the selected department.</small>
+                        </div>
+                        <div class="field od-field">
+                          <label for="dsStatus">Employment status</label>
+                          <select id="dsStatus">
+                            <option>Active</option>
+                            <option>Inactive</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div class="ds-search-results" id="dsSearchResults" aria-live="polite" aria-label="Employee search results"></div>
+                    </div>
+                  </div>
+
+                  <div class="ds-specimen">
+                    <div class="ds-specimen-head">
+                      <div>
+                        <h4 class="ds-specimen-title">Input adornments and readonly fields</h4>
+                        <p>Prefixes and suffixes stay inside the control border.</p>
+                      </div>
+                      <code class="ds-code">.input-prefix + .input-suffix</code>
+                    </div>
+                    <div class="ds-specimen-body">
+                      <div class="ds-form-demo">
+                        <div class="field od-field">
+                          <label for="dsSalaryPreview">Monthly salary</label>
+                          <div class="input-prefix"><span aria-hidden="true">$</span><input id="dsSalaryPreview" type="number" value="5600" min="1" max="100000" inputmode="decimal" aria-describedby="dsSalaryPreviewHelp"></div>
+                          <small class="field-help" id="dsSalaryPreviewHelp">Gross monthly amount in USD.</small>
+                        </div>
+                        <div class="field od-field">
+                          <label for="dsAllocationPreview">Allocation</label>
+                          <div class="input-suffix"><input id="dsAllocationPreview" type="number" value="40" min="1" max="100" inputmode="numeric" aria-describedby="dsAllocationPreviewHelp"><span aria-hidden="true">%</span></div>
+                          <small class="field-help" id="dsAllocationPreviewHelp">Total active allocations cannot exceed 100%.</small>
+                        </div>
+                        <div class="field od-field">
+                          <label for="dsReadonlyId">Employee number</label>
+                          <input id="dsReadonlyId" type="text" value="EMP-014" readonly>
+                          <small class="field-help">Read-only once the record exists.</small>
+                        </div>
+                        <div class="field od-field">
+                          <label for="dsFilterPreview">Budget status</label>
+                          <select id="dsFilterPreview">
+                            <option>All departments</option>
+                            <option>Over budget</option>
+                            <option>Within budget</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="ds-subsection" id="badges" aria-labelledby="badgesTitle">
+                  <div class="ds-subsection-head">
+                    <h3 id="badgesTitle">Status badges</h3>
+                    <p>Text and icon always carry the meaning; color reinforces it.</p>
+                  </div>
+                  <div class="ds-specimen">
+                    <div class="ds-specimen-head">
+                      <div>
+                        <h4 class="ds-specimen-title">Project, employment, and budget states</h4>
+                        <p>Badge labels use sentence case and consistent height.</p>
+                      </div>
+                      <code class="ds-code">.badge</code>
+                    </div>
+                    <div class="ds-specimen-body">
+                      <div class="ds-badge-grid">
+                        <div class="ds-badge-item">
+                          <span class="badge active"><svg class="od-icon od-icon-status" aria-hidden="true"><use href="#i-check-circle"/></svg><span>Active</span></span>
+                          <p>Current employment or delivery work.</p>
+                        </div>
+                        <div class="ds-badge-item">
+                          <span class="badge planning"><svg class="od-icon od-icon-status" aria-hidden="true"><use href="#i-clock"/></svg><span>Planning</span></span>
+                          <p>Scheduled work that has not started.</p>
+                        </div>
+                        <div class="ds-badge-item">
+                          <span class="badge completed"><svg class="od-icon od-icon-status" aria-hidden="true"><use href="#i-check-circle"/></svg><span>Completed</span></span>
+                          <p>Finished project retained for reference.</p>
+                        </div>
+                        <div class="ds-badge-item">
+                          <span class="badge cancelled"><svg class="od-icon od-icon-status" aria-hidden="true"><use href="#i-cancel"/></svg><span>Cancelled</span></span>
+                          <p>Stopped work, shown without alarm color.</p>
+                        </div>
+                        <div class="ds-badge-item">
+                          <span class="badge inactive"><svg class="od-icon od-icon-status" aria-hidden="true"><use href="#i-cancel"/></svg><span>Inactive</span></span>
+                          <p>Former employee or disabled record.</p>
+                        </div>
+                        <div class="ds-badge-item">
+                          <span class="badge over"><svg class="od-icon od-icon-status" aria-hidden="true"><use href="#i-alert"/></svg><span>Over budget</span></span>
+                          <p>Salary expense is above the monthly budget.</p>
+                        </div>
+                        <div class="ds-badge-item">
+                          <span class="badge within"><svg class="od-icon od-icon-status" aria-hidden="true"><use href="#i-check-circle"/></svg><span>Within budget</span></span>
+                          <p>Salary expense is at or below the budget.</p>
+                        </div>
+                        <div class="ds-badge-item">
+                          <span class="badge method">GET</span>
+                          <p>API method label with no status meaning.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="ds-subsection" id="stats" aria-labelledby="statsTitle">
+                  <div class="ds-subsection-head">
+                    <h3 id="statsTitle">Statistic cards</h3>
+                    <p>Four totals at a glance, with the financial total emphasized.</p>
+                  </div>
+                  <section class="stats-grid" aria-label="Sample workforce totals">
+                    <article class="stat-card od-stat">
+                      <div class="stat-label-row"><span class="stat-label">Total employees</span><svg class="od-icon od-icon-control" aria-hidden="true"><use href="#i-users"/></svg></div>
+                      <strong class="stat-value">15</strong>
+                      <span class="stat-meta">14 active employees</span>
+                    </article>
+                    <article class="stat-card od-stat">
+                      <div class="stat-label-row"><span class="stat-label">Active projects</span><svg class="od-icon od-icon-control" aria-hidden="true"><use href="#i-briefcase"/></svg></div>
+                      <strong class="stat-value">4</strong>
+                      <span class="stat-meta">8 projects in total</span>
+                    </article>
+                    <article class="stat-card od-stat">
+                      <div class="stat-label-row"><span class="stat-label">Departments</span><svg class="od-icon od-icon-control" aria-hidden="true"><use href="#i-building"/></svg></div>
+                      <strong class="stat-value">5</strong>
+                      <span class="stat-meta">With monthly salary budgets</span>
+                    </article>
+                    <article class="stat-card od-stat featured">
+                      <div class="stat-label-row"><span class="stat-label">Monthly salary expenses</span><svg class="od-icon od-icon-control" aria-hidden="true"><use href="#i-users"/></svg></div>
+                      <strong class="stat-value">$85,600</strong>
+                      <span class="stat-meta">Active employees, sample USD values</span>
+                    </article>
+                  </section>
+                  <p class="ds-note">Sample data from the dashboard view. The featured surface marks the financial total without adding an extra color.</p>
+                </section>
+
+                <section class="ds-subsection" id="tables" aria-labelledby="tablesTitle">
+                  <div class="ds-subsection-head">
+                    <h3 id="tablesTitle">Data tables</h3>
+                    <p>Sortable headers, paginated records, soft-red over-budget rows, and a record-card fallback.</p>
+                  </div>
+                  <div class="panel ds-table-demo" id="dsBudgetDemo">
+                    <div class="panel-header">
+                      <div class="panel-heading">
+                        <h4 class="ds-specimen-title">Department budget summary</h4>
+                        <p>Sort a column, change the budget filter, or move between pages.</p>
+                      </div>
+                      <span class="data-chip">Sample data</span>
+                    </div>
+                    <div class="ds-table-toolbar">
+                      <div class="field od-field">
+                        <label for="dsBudgetFilter">Budget status</label>
+                        <select id="dsBudgetFilter">
+                          <option value="All">All departments</option>
+                          <option value="Over">Over budget</option>
+                          <option value="Within">Within budget</option>
+                        </select>
+                      </div>
+                      <p class="ds-note">Rows with salary expense above budget use the error surface.</p>
+                    </div>
+                    <div class="ds-table-frame" aria-live="polite">
+                      <div class="desktop-table table-wrap" id="dsBudgetTable"></div>
+                      <div class="mobile-records" id="dsBudgetRecords"></div>
+                    </div>
+                    <div class="panel-footer" id="dsBudgetPagination"></div>
+                  </div>
+                </section>
+
+                <section class="ds-subsection" id="dialogs" aria-labelledby="dialogsTitle">
+                  <div class="ds-subsection-head">
+                    <h3 id="dialogsTitle">Dialogs and toasts</h3>
+                    <p>Native dialogs for focused work and transient toasts for confirmation.</p>
+                  </div>
+                  <div class="ds-specimen">
+                    <div class="ds-specimen-head">
+                      <div>
+                        <h4 class="ds-specimen-title">Feedback demos</h4>
+                        <p>Dialogs close with Escape, the backdrop, the close control, or Cancel.</p>
+                      </div>
+                      <code class="ds-code">.dialog + .toast</code>
+                    </div>
+                    <div class="ds-specimen-body">
+                      <p class="ds-note">Use a form dialog for contained data entry and a small confirmation dialog for irreversible actions. Toasts report the result after the dialog closes.</p>
+                      <div class="ds-dialog-demo">
+                        <button class="button primary" type="button" data-ds-open="form">Open form dialog</button>
+                        <button class="button secondary" type="button" data-ds-open="confirm">Open confirmation</button>
+                        <button class="button secondary" type="button" data-ds-toast="success">Show success toast</button>
+                        <button class="button secondary" type="button" data-ds-toast="error">Show error toast</button>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="ds-subsection" id="states" aria-labelledby="statesTitle">
+                  <div class="ds-subsection-head">
+                    <h3 id="statesTitle">Empty, loading, and error states</h3>
+                    <p>Each state names what happened and what the user can do next.</p>
+                  </div>
+                  <div class="ds-state-grid">
+                    <div class="ds-state-card">
+                      <div class="ds-state-label">Empty state</div>
+                      <div class="empty-state">
+                        <h2>No employees match these filters</h2>
+                        <p>Clear the search and department filter to restore the employee directory.</p>
+                        <button class="button secondary" type="button" data-ds-clear-search>Clear search</button>
+                      </div>
+                    </div>
+                    <div class="ds-state-card">
+                      <div class="ds-state-label">Loading state</div>
+                      <div class="loading-state" aria-busy="true">
+                        <h2>Loading workspace data</h2>
+                        <p>Preparing the current view. Controls will be available shortly.</p>
+                        <div class="loading-blocks" aria-hidden="true"><span class="loading-block"></span><span class="loading-block"></span><span class="loading-block"></span></div>
+                      </div>
+                    </div>
+                    <div class="ds-state-card">
+                      <div class="ds-state-label">Error state</div>
+                      <div class="error-state" role="alert">
+                        <h2>The view could not be loaded</h2>
+                        <p>The local sample data is still available. Retry this view to continue.</p>
+                        <button class="button primary" type="button" data-ds-retry>Retry loading</button>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="ds-subsection" id="api-pattern" aria-labelledby="apiPatternTitle">
+                  <div class="ds-subsection-head">
+                    <h3 id="apiPatternTitle">API documentation</h3>
+                    <p>Endpoint selection, method labels, response status, and a copyable payload.</p>
+                  </div>
+                  <div class="ds-api-demo">
+                    <div class="ds-api-list" aria-label="Sample endpoint list">
+                      <div class="ds-api-item is-active">
+                        <span class="badge method">GET</span>
+                        <strong>/api/employees</strong>
+                        <span>List employees</span>
+                      </div>
+                      <div class="ds-api-item">
+                        <span class="badge method">POST</span>
+                        <strong>/api/employees</strong>
+                        <span>Create an employee</span>
+                      </div>
+                      <div class="ds-api-item">
+                        <span class="badge method">GET</span>
+                        <strong>/api/projects</strong>
+                        <span>List projects</span>
+                      </div>
+                    </div>
+                    <div class="ds-api-detail">
+                      <div class="od-stack">
+                        <div class="endpoint-heading">
+                          <span class="badge method">GET</span>
+                          <span class="endpoint-path">/api/employees</span>
+                        </div>
+                        <p class="muted">Returns employees with optional text and department filters.</p>
+                      </div>
+                      <section class="api-section">
+                        <h3>Response status</h3>
+                        <div class="status-list">
+                          <span class="status-code"><strong>200</strong><span>Employees returned</span></span>
+                          <span class="status-code"><strong>400</strong><span>Invalid filter</span></span>
+                          <span class="status-code"><strong>401</strong><span>Authentication required</span></span>
+                        </div>
+                      </section>
+                      <section class="api-section">
+                        <div class="od-row">
+                          <h3 class="od-fill">Example response</h3>
+                          <button class="button secondary" type="button" data-ds-copy-response>
+                            <svg class="od-icon od-icon-control" aria-hidden="true"><use href="#i-copy"/></svg>
+                            <span>Copy response</span>
+                          </button>
+                        </div>
+                        <pre class="code-block"><code id="dsApiResponse">{
+  "data": [
+    {
+      "employeeNumber": "EMP-001",
+      "name": "Elena Petrova",
+      "department": "Engineering",
+      "status": "Active"
+    }
+  ],
+  "page": 1,
+  "pageSize": 20
+}</code></pre>
+                      </section>
+                    </div>
+                  </div>
+                </section>
+              </section>
+
+              <section class="ds-section" id="patterns" aria-labelledby="patternsTitle">
+                <div class="ds-section-head">
+                  <span class="ds-index">04</span>
+                  <div>
+                    <p class="eyebrow">Patterns</p>
+                    <h2 id="patternsTitle">How components combine in real workflows</h2>
+                    <p>Validation, workload limits, and sensitive actions follow the same ordering and feedback rules across the application.</p>
+                  </div>
+                </div>
+
+                <section class="ds-subsection" id="validation" aria-labelledby="validationTitle">
+                  <div class="ds-subsection-head">
+                    <h3 id="validationTitle">Salary validation</h3>
+                    <p>The summary appears first, then the message sits next to the field that needs attention.</p>
+                  </div>
+                  <div class="ds-specimen">
+                    <div class="ds-specimen-head">
+                      <div>
+                        <h4 class="ds-specimen-title">Error summary and inline messages</h4>
+                        <p>Messages describe the correction, not just the failure.</p>
+                      </div>
+                      <code class="ds-code">aria-invalid + .field-error</code>
+                    </div>
+                    <div class="ds-specimen-body">
+                      <div class="error-summary" role="alert" tabindex="-1">
+                        <strong>Review 2 fields before saving.</strong>
+                        <ul>
+                          <li><a href="#dsValidationNumber">Enter an employee number.</a></li>
+                          <li><a href="#dsValidationSalary">Monthly salary cannot exceed $100,000. Check the amount.</a></li>
+                        </ul>
+                      </div>
+                      <div class="ds-form-demo">
+                        <div class="field od-field">
+                          <label for="dsValidationNumber">Employee number <span aria-hidden="true">*</span></label>
+                          <input id="dsValidationNumber" type="text" aria-invalid="true" aria-describedby="dsValidationNumberError">
+                          <span class="field-error" id="dsValidationNumberError">Enter an employee number.</span>
+                        </div>
+                        <div class="field od-field">
+                          <label for="dsValidationSalary">Monthly salary <span aria-hidden="true">*</span></label>
+                          <div class="input-prefix"><span aria-hidden="true">$</span><input id="dsValidationSalary" type="number" value="120000" aria-invalid="true" aria-describedby="dsValidationSalaryError"></div>
+                          <span class="field-error" id="dsValidationSalaryError">Monthly salary cannot exceed $100,000. Check the amount.</span>
+                        </div>
+                      </div>
+                      <p class="ds-note">The summary links to each invalid field. Inline messages stay visible until the value is corrected.</p>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="ds-subsection" id="workload" aria-labelledby="workloadTitle">
+                  <div class="ds-subsection-head">
+                    <h3 id="workloadTitle">Allocation warning</h3>
+                    <p>Workload feedback is shown while the allocation is entered, before the record is saved.</p>
+                  </div>
+                  <div class="ds-specimen">
+                    <div class="ds-specimen-head">
+                      <div>
+                        <h4 class="ds-specimen-title">Project assignment with an over-limit workload</h4>
+                        <p>The message states current load, proposed total, and the remaining capacity.</p>
+                      </div>
+                      <code class="ds-code">.workload-card.warning</code>
+                    </div>
+                    <div class="ds-specimen-body">
+                      <div class="ds-form-demo">
+                        <div class="field od-field">
+                          <label for="dsWorkloadEmployee">Employee</label>
+                          <select id="dsWorkloadEmployee">
+                            <option>Nora Alvarez, Operations, 80% allocated</option>
+                          </select>
+                        </div>
+                        <div class="field od-field">
+                          <label for="dsWorkloadAllocation">Allocation</label>
+                          <div class="input-suffix"><input id="dsWorkloadAllocation" type="number" value="40" aria-invalid="true" aria-describedby="dsWorkloadError"><span aria-hidden="true">%</span></div>
+                          <span class="field-error" id="dsWorkloadError">Total active allocation would exceed 100%. Reduce this assignment to 20% or less.</span>
+                        </div>
+                      </div>
+                      <div class="workload-card od-stack warning" aria-live="polite">
+                        <div class="workload-header"><span>Nora Alvarez</span><span>120% proposed</span></div>
+                        <progress max="100" value="80" aria-label="Current active allocation for Nora Alvarez">80%</progress>
+                        <p>This assignment would reach 120%, exceeding the 100% limit by 20%.</p>
+                      </div>
+                      <p class="ds-note">The assignment cannot be saved while the proposed total exceeds 100%. The warning uses the error surface because the state blocks progress.</p>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="ds-subsection" id="confirmation" aria-labelledby="confirmationTitle">
+                  <div class="ds-subsection-head">
+                    <h3 id="confirmationTitle">Sensitive actions</h3>
+                    <p>Name the record, state the consequence, and keep the safe action first.</p>
+                  </div>
+                  <div class="ds-specimen">
+                    <div class="ds-specimen-head">
+                      <div>
+                        <h4 class="ds-specimen-title">Deactivation confirmation</h4>
+                        <p>Destructive buttons never execute immediately from a list or detail view.</p>
+                      </div>
+                      <code class="ds-code">.dialog-small</code>
+                    </div>
+                    <div class="ds-specimen-body">
+                      <p class="ds-note">The dialog repeats the employee name and explains what changes. The footer prioritizes Keep active, with the destructive action placed second. Open the live example to inspect the full flow.</p>
+                      <div class="ds-dialog-demo">
+                        <button class="button danger" type="button" data-ds-open="confirm">Review deactivation dialog</button>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </section>
+
+              <section class="ds-section" id="usage" aria-labelledby="usageTitle">
+                <div class="ds-section-head">
+                  <span class="ds-index">05</span>
+                  <div>
+                    <p class="eyebrow">Usage</p>
+                    <h2 id="usageTitle">Rules for extending the system</h2>
+                    <p>Accessibility, responsive behavior, and content conventions that apply whenever a new view is added.</p>
+                  </div>
+                </div>
+
+                <div class="ds-usage-grid">
+                  <section class="ds-usage-panel" id="accessibility" aria-labelledby="accessibilityTitle">
+                    <h3 id="accessibilityTitle">Accessibility</h3>
+                    <ul class="ds-usage-list">
+                      <li><svg class="od-icon od-icon-status do" aria-hidden="true"><use href="#i-check"/></svg><span>Maintain a visible 3px focus ring on every interactive element.</span></li>
+                      <li><svg class="od-icon od-icon-status do" aria-hidden="true"><use href="#i-check"/></svg><span>Pair status color with text and a meaningful icon.</span></li>
+                      <li><svg class="od-icon od-icon-status do" aria-hidden="true"><use href="#i-check"/></svg><span>Give icon-only controls an accessible name.</span></li>
+                      <li><svg class="od-icon od-icon-status do" aria-hidden="true"><use href="#i-check"/></svg><span>Preserve the 44px minimum target for controls.</span></li>
+                      <li><svg class="od-icon od-icon-status do" aria-hidden="true"><use href="#i-check"/></svg><span>Honor reduced motion by removing transitions and smooth scrolling.</span></li>
+                      <li><svg class="od-icon od-icon-status do" aria-hidden="true"><use href="#i-check"/></svg><span>Keep table captions, sort state, and validation relationships in the accessibility tree.</span></li>
+                    </ul>
+                  </section>
+
+                  <section class="ds-usage-panel" id="responsive" aria-labelledby="responsiveTitle">
+                    <h3 id="responsiveTitle">Responsive behavior</h3>
+                    <dl class="ds-breakpoints">
+                      <div class="ds-breakpoint"><dt>1280px and up</dt><dd>Four statistic cards, full tables, and the persistent sidebar.</dd></div>
+                      <div class="ds-breakpoint"><dt>1024px to 1279px</dt><dd>Two statistic cards per row and two-column filter panels.</dd></div>
+                      <div class="ds-breakpoint"><dt>768px to 1023px</dt><dd>Navigation becomes a drawer; dense tables become record cards.</dd></div>
+                      <div class="ds-breakpoint"><dt>480px to 767px</dt><dd>Filters stack, page actions become full width, and dialogs use the viewport.</dd></div>
+                      <div class="ds-breakpoint"><dt>Below 480px</dt><dd>Single-column statistic cards, simplified pagination, and no horizontal page overflow.</dd></div>
+                    </dl>
+                  </section>
+                </div>
+
+                <div class="ds-usage-grid">
+                  <section class="ds-usage-panel" aria-labelledby="doTitle">
+                    <h3 id="doTitle">Do</h3>
+                    <ul class="ds-usage-rules ds-rules">
+                      <li><svg class="od-icon od-icon-status do" aria-hidden="true"><use href="#i-check"/></svg><span>Use sentence case for headings, labels, buttons, and status text.</span></li>
+                      <li><svg class="od-icon od-icon-status do" aria-hidden="true"><use href="#i-check"/></svg><span>Format monthly salary as USD with no decimal places.</span></li>
+                      <li><svg class="od-icon od-icon-status do" aria-hidden="true"><use href="#i-check"/></svg><span>Lead with the consequence in confirmations and validation messages.</span></li>
+                      <li><svg class="od-icon od-icon-status do" aria-hidden="true"><use href="#i-check"/></svg><span>Reuse the shared classes before adding a new visual variant.</span></li>
+                    </ul>
+                  </section>
+
+                  <section class="ds-usage-panel" aria-labelledby="avoidTitle">
+                    <h3 id="avoidTitle">Avoid</h3>
+                    <ul class="ds-rules">
+                      <li><svg class="od-icon od-icon-status avoid" aria-hidden="true"><use href="#i-cancel"/></svg><span>Adding a second primary button to the same view.</span></li>
+                      <li><svg class="od-icon od-icon-status avoid" aria-hidden="true"><use href="#i-cancel"/></svg><span>Using color without a label to communicate project or budget status.</span></li>
+                      <li><svg class="od-icon od-icon-status avoid" aria-hidden="true"><use href="#i-cancel"/></svg><span>Hiding validation behind a toast or a generic error banner.</span></li>
+                      <li><svg class="od-icon od-icon-status avoid" aria-hidden="true"><use href="#i-cancel"/></svg><span>Introducing modules outside the HR and project administration scope.</span></li>
+                    </ul>
+                  </section>
+                </div>
+              </section>
+            </div>
+
+            <aside class="ds-toc" aria-label="On this page">
+              <p class="ds-toc-title">On this page</p>
+              <nav class="ds-toc-groups">
+                <div class="ds-toc-group">
+                  <span>Overview</span>
+                  <a href="#overview">Purpose and coverage</a>
+                </div>
+                <div class="ds-toc-group">
+                  <span>Foundations</span>
+                  <a href="#color">Color</a>
+                  <a href="#type">Typography</a>
+                  <a href="#spacing">Spacing and shape</a>
+                </div>
+                <div class="ds-toc-group">
+                  <span>Components</span>
+                  <a href="#shell">Application shell</a>
+                  <a href="#page-header">Page headers</a>
+                  <a href="#buttons">Buttons</a>
+                  <a href="#forms">Form fields</a>
+                  <a href="#badges">Status badges</a>
+                  <a href="#stats">Statistic cards</a>
+                  <a href="#tables">Data tables</a>
+                  <a href="#dialogs">Dialogs and toasts</a>
+                  <a href="#states">Empty, loading, and error</a>
+                  <a href="#api-pattern">API documentation</a>
+                </div>
+                <div class="ds-toc-group">
+                  <span>Patterns</span>
+                  <a href="#validation">Salary validation</a>
+                  <a href="#workload">Allocation warning</a>
+                  <a href="#confirmation">Sensitive actions</a>
+                </div>
+                <div class="ds-toc-group">
+                  <span>Usage</span>
+                  <a href="#accessibility">Accessibility</a>
+                  <a href="#responsive">Responsive behavior</a>
+                </div>
+              </nav>
+              <p class="ds-toc-note">Every interactive specimen on this page is live.</p>
+            </aside>
+          </div>
+
+          <footer class="ds-footer">
+            <span>HR Workspace design system, version 1.0. Sample records are demonstration data.</span>
+            <a href="index.html">Return to the workspace</a>
+          </footer>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="toast-region" id="dsToastRegion" role="status" aria-live="polite" aria-relevant="additions"></div>
+
+  <dialog class="dialog" id="dsFormDialog" aria-labelledby="dsFormDialogTitle" aria-describedby="dsFormDialogDescription">
+    <form id="dsDemoForm" novalidate>
+      <header class="dialog-header od-row-top">
+        <div class="od-stack">
+          <h2 id="dsFormDialogTitle">Add employee</h2>
+          <p id="dsFormDialogDescription">Enter a name and monthly salary for this sample record.</p>
+        </div>
+        <button class="icon-button" type="button" data-ds-close="dsFormDialog" aria-label="Close employee form">
+          <svg class="od-icon od-icon-large" aria-hidden="true"><use href="#i-close"/></svg>
+        </button>
+      </header>
+      <div class="dialog-body od-stack">
+        <div class="field od-field">
+          <label for="dsDemoName">Full name <span aria-hidden="true">*</span></label>
+          <input id="dsDemoName" type="text" autocomplete="name" aria-describedby="dsDemoNameError">
+          <span class="field-error" id="dsDemoNameError" hidden></span>
+        </div>
+        <div class="field od-field">
+          <label for="dsDemoSalary">Monthly salary <span aria-hidden="true">*</span></label>
+          <div class="input-prefix"><span aria-hidden="true">$</span><input id="dsDemoSalary" type="number" min="1" max="100000" step="100" inputmode="decimal" aria-describedby="dsDemoSalaryError"></div>
+          <span class="field-error" id="dsDemoSalaryError" hidden></span>
+        </div>
+      </div>
+      <footer class="dialog-actions">
+        <button class="button secondary" type="button" data-ds-close="dsFormDialog">Cancel</button>
+        <button class="button primary" id="dsDemoSave" type="button">Save sample employee</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog class="dialog dialog-small" id="dsConfirmDialog" aria-labelledby="dsConfirmTitle" aria-describedby="dsConfirmDescription">
+    <header class="dialog-header od-row-top">
+      <div class="od-stack">
+        <span class="eyebrow danger-text">Sensitive action</span>
+        <h2 id="dsConfirmTitle">Confirm deactivation</h2>
+      </div>
+      <button class="icon-button" type="button" data-ds-close="dsConfirmDialog" aria-label="Close confirmation">
+        <svg class="od-icon od-icon-large" aria-hidden="true"><use href="#i-close"/></svg>
+      </button>
+    </header>
+    <div class="dialog-body">
+      <p id="dsConfirmDescription">Nora Alvarez will no longer count toward active workforce totals or monthly salary expenses. The record and project history remain available.</p>
+    </div>
+    <footer class="dialog-actions">
+      <button class="button secondary" type="button" data-ds-close="dsConfirmDialog">Keep active</button>
+      <button class="button danger" id="dsConfirmDeactivate" type="button">Deactivate employee</button>
+    </footer>
+  </dialog>
+</body>
+</html>

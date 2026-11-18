@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A responsive enterprise HR and project administration prototype with shared design tokens and reusable components.">
+  <title>HR Workspace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+/* OD-LAYOUT-PRIMITIVES v1 — structure only: display, flex/grid, overflow, wrapping, ratio, geometry.
+   Put this @layer first; product CSS outside the layer wins ordinary layout rules.
+   Native hidden and closed-dialog states take precedence over component display rules. */
+@layer od-layout {
+  [hidden]:not([hidden="until-found" i]) { display: none !important; }
+  dialog:not([open]) { display: none !important; }
+
+  :where(.od-stack,.od-row,.od-row-top,.od-cluster,.od-grid,.od-field,.od-stat,.od-cell,.od-tile) > :where(*) { min-width: 0; }
+
+  /* containers */
+  .od-stack   { display: flex; flex-direction: column; gap: var(--od-gap, 8px); }
+  .od-row     { display: flex; align-items: center; gap: var(--od-gap, 8px); }
+  .od-row-top { display: flex; align-items: flex-start; gap: var(--od-gap, 8px); }
+  .od-cluster { display: flex; flex-wrap: wrap; align-items: center; gap: var(--od-gap, 8px); }
+  .od-fill    { flex: 1 1 0; min-width: 0; }
+  .od-fixed   { flex: none; }
+  .od-grid    { display: grid; gap: var(--od-gap, 12px); grid-template-columns: repeat(var(--od-cols, 3), minmax(0, 1fr)); }
+
+  /* stacked information: each piece is its own line — never sibling inline spans */
+  .od-stat, .od-field, .od-cell { display: grid; gap: var(--od-gap, 2px); }
+  :where(.od-stat,.od-field,.od-cell) > :where(*) { display: block; }
+  .od-tile { display: grid; grid-template-rows: auto 1fr; }
+  :where(.od-tile) > :where(*) { display: block; }
+
+  /* media keeps its intrinsic ratio by default; never a distorted or cropped
+     cover by accident. height:auto lets the ratio win over an <img height="…">
+     attribute. Cropping to a uniform box is an explicit opt-in: set --od-ratio
+     AND add .od-media-cover together (per the core rule, only where a crop is
+     deliberate — tile thumbs, decorative fills — never on full-frame content). */
+  .od-media { display: block; width: 100%; height: auto; aspect-ratio: var(--od-ratio, auto); }
+  .od-media-cover { object-fit: cover; }
+
+  /* functional inline SVG icons opt into bounded geometry; content SVGs keep their own */
+  .od-icon { display: inline-block; inline-size: var(--od-icon-size, 1em); block-size: var(--od-icon-size, 1em); flex: none; }
+
+  /* data text only — authored copy is rewritten to its budget instead */
+  .od-truncate { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .od-clamp-2, .od-clamp-3 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+  .od-clamp-2 { -webkit-line-clamp: 2; }
+  .od-clamp-3 { -webkit-line-clamp: 3; }
+  .od-lines-2 { min-height: calc(2 * 1.4em); }
+  .od-nowrap  { white-space: nowrap; }
+  .od-keep    { word-break: keep-all; overflow-wrap: anywhere; }
+
+  /* screen skeleton (optional): bars take their own space, the middle scrolls — no padding guessed for chrome */
+  .od-screen { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: 100%; }
+  .od-scroll { overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
+
+  /* horizontal rail: the next item peeks at the edge; trailing room survives overflow */
+  .od-rail { display: flex; gap: var(--od-gap, 8px); overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none;
+             padding-inline: var(--od-rail-pad, 16px); scroll-padding-inline: var(--od-rail-pad, 16px); }
+  .od-rail::-webkit-scrollbar { display: none; }
+  :where(.od-rail) > :where(*) { flex: none; scroll-snap-align: start; }
+  :where(.od-rail) > :where(:last-child) { margin-inline-end: var(--od-rail-pad, 16px); }
+
+  .od-spacer { flex: none; visibility: hidden; pointer-events: none; }
+  .od-touch  { min-width: 44px; min-height: 44px; }
+}
+:root [hidden]:where(:not([hidden="until-found" i])) { display: none; }
+/* /OD-LAYOUT-PRIMITIVES v1 */
+  </style>
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
+      <div class="brand od-stack">
+        <span class="brand-name">HR Workspace</span>
+        <span class="brand-caption">People and projects</span>
+      </div>
+      <nav class="side-nav od-stack" aria-label="Workspace">
+        <button class="nav-item is-active" type="button" data-route="dashboard" aria-current="page">
+          <svg class="od-icon od-icon-large" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-item" type="button" data-route="employees">
+          <svg class="od-icon od-icon-large" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20v-2.2A5.8 5.8 0 0 1 8.3 12h1.4a5.8 5.8 0 0 1 5.8 5.8V20M16 5.5a3.5 3.5 0 0 1 0 7M17.5 14a5 5 0 0 1 4 4.9V20"/></svg>
+          <span>Employees</span>
+        </button>
+        <button class="nav-item" type="button" data-route="projects">
+          <svg class="od-icon od-icon-large" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="7" width="18" height="13"/><path d="M8 7V4h8v3M3 12h18M10 12v2h4v-2"/></svg>
+          <span>Projects</span>
+        </button>
+        <button class="nav-item" type="button" data-route="api">
+          <svg class="od-icon od-icon-large" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m8 5-6 7 6 7M16 5l6 7-6 7M14 3l-4 18"/></svg>
+          <span>API Documentation</span>
+        </button>
+        <a class="nav-item nav-link" href="design-system.html">
+          <svg class="od-icon od-icon-large" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/></svg>
+          <span>Design system</span>
+        </a>
+      </nav>
+      <div class="sidebar-note od-stack">
+        <strong>Sample workspace</strong>
+        <p>All records and financial values are demonstration data.</p>
+      </div>
+    </aside>
+    <button class="nav-scrim" id="navScrim" type="button" aria-label="Close navigation" hidden></button>
+    <div class="workspace">
+      <header class="topbar">
+        <button class="button ghost menu-button" id="menuButton" type="button" aria-controls="sidebar" aria-expanded="false">
+          <svg class="od-icon od-icon-large" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+          <span>Menu</span>
+        </button>
+        <div class="topbar-context od-stack">
+          <span class="topbar-kicker">Enterprise administration</span>
+          <strong id="topbarPage">Dashboard</strong>
+        </div>
+        <div class="topbar-meta od-row">
+          <span class="data-chip">Sample data</span>
+          <div class="user-meta od-stack">
+            <span>HR Administrator</span>
+            <small>Workspace access</small>
+          </div>
+        </div>
+      </header>
+      <main class="main-content" id="main-content" tabindex="-1"></main>
+    </div>
+  </div>
+
+  <div class="toast-region" id="toastRegion" role="status" aria-live="polite" aria-relevant="additions"></div>
+
+  <dialog class="dialog dialog-wide" id="employeeDialog" aria-labelledby="employeeDialogTitle">
+    <form id="employeeForm" novalidate>
+      <header class="dialog-header od-row-top">
+        <div class="od-stack">
+          <h2 id="employeeDialogTitle">Add employee</h2>
+          <p id="employeeDialogDescription">Enter the employee’s workplace details.</p>
+        </div>
+        <button class="icon-button" type="button" data-close-dialog="employeeDialog" aria-label="Close employee form">
+          <svg class="od-icon od-icon-large" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19"/></svg>
+        </button>
+      </header>
+      <div class="dialog-body od-stack">
+        <div class="error-summary" id="employeeErrorSummary" tabindex="-1" hidden></div>
+        <div class="form-grid">
+          <div class="field od-field" data-field="employeeNumber">
+            <label for="employeeNumber">Employee number <span aria-hidden="true">*</span></label>
+            <input id="employeeNumber" name="employeeNumber" type="text" autocomplete="off" required aria-describedby="employeeNumberError">
+            <span class="field-error" id="employeeNumberError" hidden></span>
+          </div>
+          <div class="field od-field" data-field="employeeName">
+            <label for="employeeName">Full name <span aria-hidden="true">*</span></label>
+            <input id="employeeName" name="employeeName" type="text" autocomplete="name" required aria-describedby="employeeNameError">
+            <span class="field-error" id="employeeNameError" hidden></span>
+          </div>
+          <div class="field od-field" data-field="department">
+            <label for="employeeDepartment">Department <span aria-hidden="true">*</span></label>
+            <select id="employeeDepartment" name="department" required aria-describedby="departmentError"></select>
+            <span class="field-error" id="departmentError" hidden></span>
+          </div>
+          <div class="field od-field" data-field="position">
+            <label for="employeePosition">Position <span aria-hidden="true">*</span></label>
+            <select id="employeePosition" name="position" required aria-describedby="positionError"></select>
+            <span class="field-error" id="positionError" hidden></span>
+          </div>
+          <div class="field od-field" data-field="manager">
+            <label for="employeeManager">Manager</label>
+            <select id="employeeManager" name="manager" aria-describedby="managerHelp managerError"></select>
+            <small class="field-help" id="managerHelp">Options follow the selected department.</small>
+            <span class="field-error" id="managerError" hidden></span>
+          </div>
+          <div class="field od-field" data-field="salary">
+            <label for="employeeSalary">Monthly salary <span aria-hidden="true">*</span></label>
+            <div class="input-prefix"><span aria-hidden="true">$</span><input id="employeeSalary" name="salary" type="number" min="1" max="100000" step="100" inputmode="decimal" required aria-describedby="salaryHelp salaryError"></div>
+            <small class="field-help" id="salaryHelp">Enter a gross monthly amount in USD.</small>
+            <span class="field-error" id="salaryError" hidden></span>
+          </div>
+          <div class="field od-field" data-field="status">
+            <label for="employeeStatus">Employment status</label>
+            <select id="employeeStatus" name="status">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <footer class="dialog-actions">
+        <button class="button secondary" type="button" data-close-dialog="employeeDialog">Cancel</button>
+        <button class="button primary" id="saveEmployee" type="button">Save employee</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog class="dialog" id="employeeDetailsDialog" aria-labelledby="employeeDetailsTitle">
+    <header class="dialog-header od-row-top">
+      <div class="od-stack">
+        <span class="eyebrow">Employee record</span>
+        <h2 id="employeeDetailsTitle">Employee details</h2>
+      </div>
+      <button class="icon-button" type="button" data-close-dialog="employeeDetailsDialog" aria-label="Close employee details">
+        <svg class="od-icon od-icon-large" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19"/></svg>
+      </button>
+    </header>
+    <div class="dialog-body" id="employeeDetailsContent"></div>
+    <footer class="dialog-actions">
+      <button class="button secondary" type="button" data-close-dialog="employeeDetailsDialog">Close</button>
+      <button class="button primary" id="editFromDetails" type="button">Edit employee</button>
+    </footer>
+  </dialog>
+
+  <dialog class="dialog dialog-small" id="confirmDialog" aria-labelledby="confirmTitle" aria-describedby="confirmDescription">
+    <header class="dialog-header od-row-top">
+      <div class="od-stack">
+        <span class="eyebrow danger-text">Sensitive action</span>
+        <h2 id="confirmTitle">Confirm deactivation</h2>
+      </div>
+      <button class="icon-button" type="button" data-close-dialog="confirmDialog" aria-label="Close confirmation">
+        <svg class="od-icon od-icon-large" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19"/></svg>
+      </button>
+    </header>
+    <div class="dialog-body">
+      <p id="confirmDescription"></p>
+    </div>
+    <footer class="dialog-actions">
+      <button class="button secondary" type="button" data-close-dialog="confirmDialog">Keep active</button>
+      <button class="button danger" id="confirmDeactivate" type="button">Deactivate employee</button>
+    </footer>
+  </dialog>
+
+  <dialog class="dialog" id="assignmentDialog" aria-labelledby="assignmentDialogTitle">
+    <form id="assignmentForm" novalidate>
+      <header class="dialog-header od-row-top">
+        <div class="od-stack">
+          <h2 id="assignmentDialogTitle">Assign team member</h2>
+          <p id="assignmentProjectName"></p>
+        </div>
+        <button class="icon-button" type="button" data-close-dialog="assignmentDialog" aria-label="Close assignment form">
+          <svg class="od-icon od-icon-large" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19"/></svg>
+        </button>
+      </header>
+      <div class="dialog-body od-stack">
+        <div class="error-summary" id="assignmentErrorSummary" tabindex="-1" hidden></div>
+        <div class="field od-field" data-field="assignee">
+          <label for="assignmentEmployee">Employee <span aria-hidden="true">*</span></label>
+          <select id="assignmentEmployee" required aria-describedby="assignmentEmployeeError"></select>
+          <span class="field-error" id="assignmentEmployeeError" hidden></span>
+        </div>
+        <div class="field od-field" data-field="role">
+          <label for="assignmentRole">Project role <span aria-hidden="true">*</span></label>
+          <input id="assignmentRole" type="text" placeholder="For example, Technical lead" required aria-describedby="assignmentRoleError">
+          <span class="field-error" id="assignmentRoleError" hidden></span>
+        </div>
+        <div class="field od-field" data-field="allocation">
+          <label for="assignmentAllocation">Allocation <span aria-hidden="true">*</span></label>
+          <div class="input-suffix"><input id="assignmentAllocation" type="number" min="1" max="100" step="5" inputmode="numeric" required aria-describedby="assignmentAllocationHelp assignmentAllocationError"><span aria-hidden="true">%</span></div>
+          <small class="field-help" id="assignmentAllocationHelp">Total active allocations cannot exceed 100%.</small>
+          <span class="field-error" id="assignmentAllocationError" hidden></span>
+        </div>
+        <div class="workload-card od-stack" id="assignmentWorkload" aria-live="polite"></div>
+      </div>
+      <footer class="dialog-actions">
+        <button class="button secondary" type="button" data-close-dialog="assignmentDialog">Cancel</button>
+        <button class="button primary" id="saveAssignment" type="button">Save assignment</button>
+      </footer>
+    </form>
+  </dialog>
+</body>
+</html>
