@@ -83,12 +83,13 @@ steps, and the Apple Silicon caveats — is in
 | T21.5 | Single host: Api becomes a class library, WebApp serves MVC + `/api/**` + Swagger | done |
 | T22 | Global API exception-handling middleware | done |
 | T23 | Employee endpoints: paged list and salary change | done |
-| T24+ | Remaining API endpoints and Razor screens | pending |
+| T24 | Project endpoints: details and employee assignment | done |
+| T25+ | Remaining API endpoints and Razor screens | pending |
 
 The database, domain layer, data-access foundation, services and the API infrastructure
 (envelope, validation mapping, exception mapping, Swagger) are complete, and MVC plus the API
-now serve from one process. The employee endpoints are live; what is still missing: the
-remaining API controllers (employee write operations, projects, assignments, reports) and the
+now serve from one process. The employee and project endpoints are live; what is still missing:
+the remaining API controllers (employee write operations, the project list and reports) and the
 Razor screens ported from the design system.
 Stage-by-stage detail is in [docs/development-stages.md](docs/development-stages.md).
 
@@ -103,7 +104,7 @@ migration tool, test projects, CI pipelines, and containerization of the .NET ap
 | [docs/getting-started.md](docs/getting-started.md) | Prerequisites, local setup, configuration, running the application, troubleshooting. |
 | [docs/architecture.md](docs/architecture.md) | Projects, layer responsibilities, data-access rules, design-system contract, scope. |
 | [docs/database.md](docs/database.md) | Schema, constraints, stored procedure, seed fixtures. |
-| [docs/development-stages.md](docs/development-stages.md) | T01–T23 stage log and what comes next. |
+| [docs/development-stages.md](docs/development-stages.md) | T01–T24 stage log and what comes next. |
 | [db/README.md](db/README.md) | Rules for the numbered SQL init scripts. |
 | [AGENTS.md](AGENTS.md) | Working rules for coding agents, including where each kind of knowledge belongs. |
 

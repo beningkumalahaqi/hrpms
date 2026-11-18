@@ -30,7 +30,8 @@ the log of what each stage added. The authoritative "what is done" summary is th
 | T21.5 | Single host: Api as a class library, WebApp serves MVC + `/api/**` + Swagger | done |
 | T22 | Global API exception-handling middleware | done |
 | T23 | Employee API endpoints: list and salary change | done |
-| T24+ | Remaining API endpoints and Razor screens | pending |
+| T24 | Project API endpoints: details and assignment | done |
+| T25+ | Remaining API endpoints and Razor screens | pending |
 
 ## T01–T04 — Infrastructure and database
 
@@ -321,7 +322,47 @@ history row. Malformed JSON, an empty body, a missing `reason`, a negative salar
 non-numeric query value each returned the 400 validation envelope. The probe rows and the salary
 changes were then reverted, leaving the seed at `4|10|9|6|7|0`.
 
+## T24 — Project endpoints
+
+`src/EnterpriseHR.Api/Controllers/ProjectsController.cs` exposes a project's details and the
+assignment operation.
+
+`GET /api/projects/{id:int}/details` calls `GetDetailsAsync` and turns a null result into
+`NotFoundException("Project not found.")` — thrown rather than returned, so the 404 body comes
+from the same middleware as every other error, giving the exact message the contract asks for
+instead of a bare status. A found project returns `ProjectDetailDto` with its `members` array;
+former employees stay in that array with `isEmployeeActive: false`, keeping project history
+intact.
+
+`POST /api/projects/{id:int}/assign` calls `AssignAsync` and answers 201 with
+`{ assignmentId, projectId, employeeId, allocationPercentage }` and a `Location` header for
+`GET /api/projects/{id}/details`. The body is built from the id the insert returned plus the
+values just persisted — no read-back, because the endpoint returns the assignment, not the
+project. `projectId` comes from the route: `AssignEmployeeRequest` deliberately carries only
+`employeeId`, `roleInProject` and `allocationPercentage`. `CreatedAssignmentDto` is a record
+nested in the controller, since it is this endpoint's response shape alone.
+
+The controller has no try/catch, and it does not need one: the repository already throws the
+types the middleware maps. Inactive employee, a project whose status is not
+`Active`/`Planning`, and an out-of-range percentage are `BusinessRuleException` (400); a
+duplicate assignment and a total allocation above 100% are `ConflictException` (409); an unknown
+project or employee is `NotFoundException` (404). `allocationPercentage` is a share of the
+employee's total workload across all projects, so E002 at 100% cannot accept another 10%.
+
+Verified against the live database, starting from 7 assignments. Rejections with no write
+afterwards (still 7 rows): duplicate E003 → PRJ-001 (409), E002 at 100% → PRJ-003 at 10% (409
+with `Allocation would reach 110% (current 100% + requested 10%)`), inactive E005 (400),
+`Completed` PRJ-004 (400), `Cancelled` PRJ-005 (400), unknown project 999 (404), unknown
+employee 999 (404), and six validation failures — allocation 0, allocation 101, missing role,
+101-character role, `employeeId` 0 and malformed JSON. The accepted request, E003 → PRJ-002 at
+50%, returned 201, `Location: /api/Projects/2/details`, assignment id 24 and
+`allocationPercentage: 50`; E003's total allocation moved 30% → 80% and PRJ-002's member list
+grew to two. That row was then deleted and the seed snapshot returned to `4|10|9|6|7|0` with
+E003 back at 30%.
+
+`/api/projects` itself stays a 404: only `{id}/details` and `{id}/assign` are routed.
+
 ## Next
 
-T24 onward adds the remaining controllers — employee create/read/update/delete, projects,
-assignments and reports — and then the Razor screens ported from `design-system/`.
+T25 onward adds the remaining controllers — employee create/read/update/delete, the project
+list, and reports — and then the Razor screens ported from `design-system/`.

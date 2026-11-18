@@ -190,13 +190,15 @@ is titled **EnterpriseHR API v1** and documents the controllers from the Api ass
 
 ### Endpoints
 
-Two employee endpoints exist so far, both in `src/EnterpriseHR.Api/Controllers/EmployeesController.cs`.
-Every other `/api/**` path is still a 404.
+The endpoints implemented so far. Controllers live in `src/EnterpriseHR.Api/Controllers/`;
+every `/api/**` path not listed here is a 404 envelope.
 
 | Endpoint | Response `data` | Notes |
 | -------- | --------------- | ----- |
 | `GET /api/employees` | `PagedResult<EmployeeDto>` | Active employees only. `search` (name, employee number, email; 255 chars max), `departmentId`, `page` (default 1), `pageSize` (default 10, max 100). |
 | `PATCH /api/employees/{id:int}/salary` | `EmployeeDto` | Body `UpdateSalaryRequest`: `newSalary`, `newPositionId`, `reason`. Success `message` is `"Salary updated."`. |
+| `GET /api/projects/{id:int}/details` | `ProjectDetailDto` | The project plus its `members` array. A former employee stays listed, with `isEmployeeActive: false`. |
+| `POST /api/projects/{id:int}/assign` | `{ assignmentId, projectId, employeeId, allocationPercentage }` | Body `AssignEmployeeRequest`: `employeeId`, `roleInProject`, `allocationPercentage`. 201 with a `Location` header pointing at that project's details. |
 
 `GET /api/employees` is hard-wired to active employees: the controller builds its own
 `EmployeeFilter` with `IsActive = true` instead of forwarding the bound one, so a client-sent
@@ -210,10 +212,26 @@ Paging past the last page returns an empty `items` with the real `totalCount`.
 manager names rather than an echo of the request. Business failures are not special-cased in
 the controller: `ChangeSalaryAsync` throws, and the exception middleware returns 404 for an
 unknown id or 400 for an out-of-range salary, an inactive employee, a missing target position
-or a no-op change, with `data: null`. The XML summaries and the
-`[ProducesResponseType]` attributes on both actions feed Swagger, but the XML half only
-reaches the document once `GenerateDocumentationFile` is enabled on the Api project — today
-`IncludeXmlComments` finds no file and the descriptions stay empty.
+or a no-op change, with `data: null`.
+
+`GET /api/projects/{id:int}/details` throws `NotFoundException("Project not found.")` when the
+service returns null rather than returning a bare `NotFound()`, so the 404 body is built by the
+same middleware as every other error envelope.
+
+`POST /api/projects/{id:int}/assign` follows the same rule by omission: it has no try/catch, and
+the repository's exception types already match the status map — `BusinessRuleException` (400)
+for an inactive employee, a project that is not `Active`/`Planning`, or an out-of-range
+percentage; `ConflictException` (409) for a duplicate assignment or an allocation that would
+exceed 100%; `NotFoundException` (404) for an unknown project or employee. The percentage is a
+share of the employee's *total* workload across projects, not of this one. The 201 body is built
+from the id the insert returned plus the values just persisted, so no read-back is needed; the
+`projectId` comes from the route, since the body deliberately carries none.
+`CreatedAssignmentDto` is nested inside `ProjectsController` because it is the response shape of
+that one endpoint and nothing else reads it.
+
+The XML summaries and the `[ProducesResponseType]` attributes on these actions feed Swagger, but
+the XML half only reaches the document once `GenerateDocumentationFile` is enabled on the Api
+project — today `IncludeXmlComments` finds no file and the descriptions stay empty.
 
 ### Exception handling
 
