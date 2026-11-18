@@ -279,7 +279,8 @@ serving requests that touch the database.
 | T06 | Connection factory and DI wiring | done |
 | T07 | Domain entities | done |
 | T08 | DTOs, requests, common types | done |
-| T09+ | Application features | pending |
+| T09 | Domain exceptions | done |
+| T10+ | Application features | pending |
 
 The schema from T02 is in place, so `db-init` now actually runs `db/01_schema.sql`
 instead of reporting that it has nothing to do. T03 adds
@@ -320,6 +321,16 @@ table columns (`EmployeeNumber` 20, `FullName` 255, `Email` 150 + email format,
 `RoleInProject`/`Reason` 100/255, `AllocationPercentage` 1–100, `NewSalary` > 0), so WebApp
 `ModelState` checks and the API's automatic 400s share one set of rules. `EmployeeFilter`
 pages with `Page`/`PageSize` defaulting to 1 and 10.
+
+T09 adds `src/EnterpriseHR.Domain/Exceptions/`: an abstract `AppException : Exception` with
+`protected` constructors, and three concrete siblings that carry the response mapping as a
+convention rather than as code — `NotFoundException` (404), `BusinessRuleException` (400,
+for salary-range, inactive-employee, project-status, no-op-salary and bad-reference rules),
+and `ConflictException` (409, for over-allocation, duplicate assignment, blocked delete and
+duplicate employee number/email). Each has a `(string message)` constructor plus a
+`(string, Exception)` overload for wrapping `SqlException`. The Domain project still
+references no ASP.NET Core assemblies; the API middleware and WebApp filter will translate
+these types into status codes.
 
 The design system export in `design-system/` is static reference material at this
 stage. No Razor view or layout uses it yet; that starts when the dashboard screens are
