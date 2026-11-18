@@ -188,6 +188,33 @@ and `data` = a field-to-messages dictionary keyed by the camelCase path the clie
 (`reason`, `body.name`). Swagger UI is served at `/swagger` in Development only; the document
 is titled **EnterpriseHR API v1** and documents the controllers from the Api assembly.
 
+### Endpoints
+
+Two employee endpoints exist so far, both in `src/EnterpriseHR.Api/Controllers/EmployeesController.cs`.
+Every other `/api/**` path is still a 404.
+
+| Endpoint | Response `data` | Notes |
+| -------- | --------------- | ----- |
+| `GET /api/employees` | `PagedResult<EmployeeDto>` | Active employees only. `search` (name, employee number, email; 255 chars max), `departmentId`, `page` (default 1), `pageSize` (default 10, max 100). |
+| `PATCH /api/employees/{id:int}/salary` | `EmployeeDto` | Body `UpdateSalaryRequest`: `newSalary`, `newPositionId`, `reason`. Success `message` is `"Salary updated."`. |
+
+`GET /api/employees` is hard-wired to active employees: the controller builds its own
+`EmployeeFilter` with `IsActive = true` instead of forwarding the bound one, so a client-sent
+`?isActive=false` is ignored rather than widening the list to former staff. The remaining
+values are copied through, so query binding and the `EmployeeFilter` validation attributes
+still apply — `pageSize=0` or `pageSize=101` is a 400 validation failure, not a silent clamp.
+Paging past the last page returns an empty `items` with the real `totalCount`.
+
+`PATCH /api/employees/{id:int}/salary` answers with the refreshed `EmployeeDto`, read back via
+`GetByIdAsync` after the write, so the caller sees the stored salary, position, department and
+manager names rather than an echo of the request. Business failures are not special-cased in
+the controller: `ChangeSalaryAsync` throws, and the exception middleware returns 404 for an
+unknown id or 400 for an out-of-range salary, an inactive employee, a missing target position
+or a no-op change, with `data: null`. The XML summaries and the
+`[ProducesResponseType]` attributes on both actions feed Swagger, but the XML half only
+reaches the document once `GenerateDocumentationFile` is enabled on the Api project — today
+`IncludeXmlComments` finds no file and the descriptions stay empty.
+
 ### Exception handling
 
 `ExceptionHandlingMiddleware` in `src/EnterpriseHR.Api/Middleware/` is the single place API

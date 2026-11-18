@@ -29,7 +29,8 @@ the log of what each stage added. The authoritative "what is done" summary is th
 | T21 | API bootstrap, response envelope, validation, Swagger | done |
 | T21.5 | Single host: Api as a class library, WebApp serves MVC + `/api/**` + Swagger | done |
 | T22 | Global API exception-handling middleware | done |
-| T23+ | API endpoints and Razor screens | pending |
+| T23 | Employee API endpoints: list and salary change | done |
+| T24+ | Remaining API endpoints and Razor screens | pending |
 
 ## T01–T04 — Infrastructure and database
 
@@ -275,7 +276,52 @@ model-binding failure still returned the T21 validation envelope with field erro
 that had already started was left untouched and logged. Client cancellation produced no
 response and no error log.
 
+## T23 — Employee endpoints
+
+`src/EnterpriseHR.Api/Controllers/EmployeesController.cs` adds the first two real endpoints, so
+`/api/employees` stopped being a 404.
+
+`GET /api/employees` returns `PagedResult<EmployeeDto>` and lists active employees only. The
+controller builds a fresh `EmployeeFilter` with `IsActive = true` and copies `search`,
+`departmentId`, `page` and `pageSize` onto it, rather than forwarding the bound filter: `IsActive`
+is a server-side decision, so `?isActive=false` cannot be used to list former staff. Copying
+(not replacing) the bound object keeps query-string binding and the `EmployeeFilter`
+`[Range]`/`[StringLength]` attributes live, so `pageSize=0`, `pageSize=101`, `page=0` and a
+256-character search all return the 400 validation envelope instead of being clamped silently.
+`EmployeeService` then trims the search and clamps paging as before, and a page past the end
+returns an empty `items` with the real `totalCount`. Search stays parameterised and its LIKE
+metacharacters escaped: `search=%`, `search=_` and `search=' OR 1=1--` all match nothing.
+
+`PATCH /api/employees/{id:int}/salary` calls `ChangeSalaryAsync`, then reads the employee back
+with `GetByIdAsync` and returns that DTO with `message` `"Salary updated."`. The read-back is
+deliberate: it returns what the database holds, including department and manager names the
+request never mentions. The controller has no try/catch — `NotFoundException` and
+`BusinessRuleException` from the repository reach `ExceptionHandlingMiddleware` and leave as 404
+and 400 with `data: null`, the same split the middleware already applies elsewhere. A missing id
+in the read-back is treated defensively as a 404 rather than a null dereference.
+
+Both actions carry `<summary>`/`<response>` XML docs and
+`[ProducesResponseType(typeof(ApiResponse<T>), ...)]` for 200/400/(404)/409/500. Note that the
+XML half is inert: `EnterpriseHR.Api.csproj` does not set `GenerateDocumentationFile`, so the
+`IncludeXmlComments` call in `Program.cs` still finds no file and Swagger shows no summaries.
+Enabling it is a one-line change but raises 9 CS1591 warnings in files this stage does not own,
+so it is left for a review stage.
+
+Verified against the live database. `GET /api/employees?departmentId=1&page=1&pageSize=2`
+returned 2 items with `totalCount=4`, `totalPages=2`, and page 2 returned the other two.
+`?isActive=false&pageSize=100` still reported `totalCount=9` with every item active; searching a
+soft-deleted employee's name returned 0. `PATCH /api/employees/6/salary` (E004, Senior Developer,
+band 12,000,000–25,000,000) returned 400 for `11,999,999`, for the no-op `12,000,000`, for
+inactive E005, for a non-existent position and for employee `9999` (404), and 200 with
+`"Salary updated."` and a refreshed DTO for `13,000,000`. After all five rejected requests
+`SalaryHistories` still held 0 rows and E004 still read 12,000,000 in position 2; after the
+accepted one it held the single `12,000,000 → 13,000,000` row. A second accepted request that
+also changed position (to Engineering Manager at 26,000,000) wrote both columns and a second
+history row. Malformed JSON, an empty body, a missing `reason`, a negative salary and a
+non-numeric query value each returned the 400 validation envelope. The probe rows and the salary
+changes were then reverted, leaving the seed at `4|10|9|6|7|0`.
+
 ## Next
 
-T23 onward adds the endpoints themselves: the employee, project, assignment and report
-controllers, and the Razor screens ported from `design-system/`.
+T24 onward adds the remaining controllers — employee create/read/update/delete, projects,
+assignments and reports — and then the Razor screens ported from `design-system/`.
