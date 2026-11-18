@@ -2,6 +2,9 @@
 
 SQL Server initialization scripts for `EnterpriseHRDB`.
 
+Schema, constraint and seed-fixture reference: [../docs/database.md](../docs/database.md).
+This file covers the script rules and the state of each file.
+
 Scripts are picked up by the `db-init` service in `docker-compose.yml`, which
 runs every file matching `0*.sql` in filename order against the `sqlserver`
 container after it reports healthy.

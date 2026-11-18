@@ -10,8 +10,9 @@ Guidance for coding agents working in this repository. Read this before starting
   (controller-based Web API + Swagger).
 - Data flow: WebApp/Api → DataAccess (Dapper + `Microsoft.Data.SqlClient`) → SQL Server.
   Stored procedures and schema live in `db/`.
-- No EF Core, no SPA, no separate frontend. `README.md` is the authoritative setup,
-  architecture and scope document.
+- No EF Core, no SPA, no separate frontend. `README.md` is a short front page (what the
+  project is, quick start, status, links); the authoritative setup, architecture,
+  database and scope documents live in `docs/`.
 - Out of scope unless the task says otherwise: authentication, migrations, test projects,
   a fifth project, and .NET app containers.
 
@@ -20,19 +21,21 @@ Guidance for coding agents working in this repository. Read this before starting
 | Path | What it is | Use it for |
 | ---- | ---------- | ---------- |
 | `design-system/` | Exported HR Workspace UI reference (tokens, screens, component states) | Visual source of truth for UI work. Start at `design-system/index.html`, then `DESIGN-HANDOFF.md` and `design-system.html`. Match typography, spacing, colors, states; do not invent a new look. |
-| `docs/` | Design notes, API contracts, database documentation | Written docs per stage. Created with the first design note; add a file instead of growing the README. |
+| `docs/` | Long-form user documentation | `index.md` (index), `getting-started.md` (setup, config, troubleshooting), `architecture.md` (projects, data-access rules, design system, scope), `database.md` (schema, procedure, seed), `development-stages.md` (stage log). Add a file and link it from `docs/index.md` instead of growing the README. |
 | `agents/memory/` | Local agent memory: verified facts, decisions, gotchas | Read before touching an area; start at `agents/memory/1index.md`. Working notes, not user docs. |
 | `db/` | Numbered SQL init scripts run by `db-init` | Schema (`01_*.sql`), procedures (`02_*.sql`), seed (`03_*.sql`). |
 | `src/` | The four .NET projects | Application code. |
-| `README.md` | Setup, architecture, scope, status | What a human reviewer reads first. |
+| `README.md` | Short front page: purpose, projects, quick start, status, doc links | What a human reviewer reads first. Keep it short; detail goes in `docs/`. |
 
 Design facts go in `design-system/`, explanations and contracts in `docs/`, operational
 knowledge in `agents/memory/`. Do not duplicate content across them.
 
 ## What agents should do
 
-1. **Read first.** `README.md`, `agents/memory/1index.md` and any relevant memory entry,
-   then the code you are about to change. Investigate unfamiliar files before overwriting.
+1. **Read first.** `README.md`, `docs/index.md` plus the doc for the area you are touching
+   (`getting-started.md`, `architecture.md`, `database.md`, `development-stages.md`),
+   `agents/memory/1index.md` and any relevant memory entry, then the code you are about to
+   change. Investigate unfamiliar files before overwriting.
 2. **Stay in scope.** Change only the files the task names. Never silently rename public
    types, methods, routes, DTO properties, SQL columns or response fields.
 3. **Follow the data-access rules.** Async Dapper only (`QueryAsync`, `ExecuteAsync`,
@@ -49,12 +52,17 @@ knowledge in `agents/memory/`. Do not duplicate content across them.
 6. **Verify, don't assume.** Exercise the real environment where possible (for SQL work,
    re-run `docker compose run --rm db-init` twice and query the result). Report what was
    checked and any test data you cleaned up.
-7. **Update user-facing docs only on real change.** Touch `README.md` / `db/README.md`
-   when setup, commands, or project status changed; leave them alone otherwise.
+7. **Update the docs after the work is implemented and verified.** Once the task's changes
+   are in place and you have confirmed they work (build, `db-init`, HTTP probe, whatever
+   the change needs), check whether `docs/*.md`, `README.md` or `db/README.md` now say
+   something wrong or incomplete and fix it. If nothing user-facing changed, leave them
+   alone — do not update docs for a change that was not verified. Long-form detail belongs
+   in `docs/` (linked from `docs/index.md`), not in the README.
 8. **Finish with memory and status.** After a task, add an entry to `agents/memory/` and a
    row to `agents/memory/1index.md`. Then update the **Project Status** table in
-   `README.md`: the finished stage must read `done` (and the one-line note beneath the
-   table if the current state changed). This is part of "done", not optional polish.
+   `README.md`: the finished stage must read `done`, and the stage log in
+   `docs/development-stages.md` gets the detail. This is part of "done", not optional
+   polish.
 
 ## Memory entry format
 
