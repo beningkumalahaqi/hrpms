@@ -206,12 +206,17 @@ Both hosts read the same connection string, under the key
 }
 ```
 
-Keep the local value in `src/EnterpriseHR.WebApp/appsettings.Development.json` or
-`src/EnterpriseHR.Api/appsettings.Development.json`, or use user secrets. Only commit a
-placeholder in appsettings files; `.env` is ignored by Git, `appsettings` is not.
+Both `src/EnterpriseHR.WebApp/appsettings.Development.json` and
+`src/EnterpriseHR.Api/appsettings.Development.json` ship this exact local development
+string, built from the `.env.example` placeholder password. If your `.env` uses a
+different `MSSQL_SA_PASSWORD`, update both files to match. Only commit a placeholder
+password in appsettings files; `.env` is ignored by Git, `appsettings` is not.
 
-For environments and CI, the standard ASP.NET Core configuration override applies, so
-the connection string can be supplied without touching a file:
+The connection string is read once by `AddEnterpriseHrDataAccess` in
+`EnterpriseHR.DataAccess`, which throws `InvalidOperationException` at startup when the
+key is missing and registers the Dapper connection factory for both hosts. Because the
+key only exists in `appsettings.Development.json`, a non-Development environment must
+supply it, for example with the standard ASP.NET Core configuration override:
 
 ```bash
 export ConnectionStrings__EnterpriseHR="Server=localhost,1433;Database=EnterpriseHRDB;User Id=sa;Password=<your-password>;TrustServerCertificate=True;Encrypt=True"
@@ -271,7 +276,8 @@ serving requests that touch the database.
 | T03 | Stored procedures and data-access queries | done |
 | T04 | Seed data | done |
 | T05 | Solution and the four projects | done |
-| T06+ | Application features | pending |
+| T06 | Connection factory and DI wiring | done |
+| T07+ | Application features | pending |
 
 The schema from T02 is in place, so `db-init` now actually runs `db/01_schema.sql`
 instead of reporting that it has nothing to do. T03 adds
@@ -285,8 +291,16 @@ T05 adds `EnterpriseHRSystem.sln` and the four projects under `src/`, wired
 `DataAccess → Domain` and `{WebApp, Api} → {Domain, DataAccess}`. `dotnet build
 EnterpriseHRSystem.sln` succeeds with no warnings, the MVC host serves on
 <http://localhost:5100>, and the API serves Swagger UI on <http://localhost:5200/swagger>.
-The projects are still templates: `Program.cs`, the Razor views, and the controllers carry
-no HR features yet. T04's seed data exists but nothing reads it until T06.
+The projects are still templates: `Program.cs`, the Razor views, and the controllers
+carry no HR features yet.
+
+T06 adds the shared data-access wiring: `IDbConnectionFactory` with the
+`Microsoft.Data.SqlClient` implementation (`DataAccess/Infrastructure/`), and
+`AddEnterpriseHrDataAccess` which validates `ConnectionStrings:EnterpriseHR` and registers
+the factory as a singleton. Both hosts call it from `Program.cs`, so either one fails at
+startup with a clear message when the connection string is missing. Repositories register
+as scoped in `AddEnterpriseHrDataAccess` as they are added. T04's seed data is not read
+until the first repository lands.
 
 The design system export in `design-system/` is static reference material at this
 stage. No Razor view or layout uses it yet; that starts when the dashboard screens are
