@@ -277,7 +277,8 @@ serving requests that touch the database.
 | T04 | Seed data | done |
 | T05 | Solution and the four projects | done |
 | T06 | Connection factory and DI wiring | done |
-| T07+ | Application features | pending |
+| T07 | Domain entities | done |
+| T08+ | Application features | pending |
 
 The schema from T02 is in place, so `db-init` now actually runs `db/01_schema.sql`
 instead of reporting that it has nothing to do. T03 adds
@@ -291,16 +292,20 @@ T05 adds `EnterpriseHRSystem.sln` and the four projects under `src/`, wired
 `DataAccess → Domain` and `{WebApp, Api} → {Domain, DataAccess}`. `dotnet build
 EnterpriseHRSystem.sln` succeeds with no warnings, the MVC host serves on
 <http://localhost:5100>, and the API serves Swagger UI on <http://localhost:5200/swagger>.
-The projects are still templates: `Program.cs`, the Razor views, and the controllers
-carry no HR features yet.
 
 T06 adds the shared data-access wiring: `IDbConnectionFactory` with the
 `Microsoft.Data.SqlClient` implementation (`DataAccess/Infrastructure/`), and
 `AddEnterpriseHrDataAccess` which validates `ConnectionStrings:EnterpriseHR` and registers
 the factory as a singleton. Both hosts call it from `Program.cs`, so either one fails at
 startup with a clear message when the connection string is missing. Repositories register
-as scoped in `AddEnterpriseHrDataAccess` as they are added. T04's seed data is not read
-until the first repository lands.
+as scoped in `AddEnterpriseHrDataAccess` as they are added. The projects are still
+templates: `Program.cs`, the Razor views, and the controllers carry no HR features yet,
+and T04's seed data is not read until the first repository lands.
+
+T07 adds the six entity classes under `src/EnterpriseHR.Domain/Entities/`, one per table
+with property names, order, and CLR types matching the schema columns, plus
+`ProjectStatus` with the four status values the `CK_Projects_Status` constraint accepts.
+The entities are plain classes with no navigation properties; repositories map flat rows.
 
 The design system export in `design-system/` is static reference material at this
 stage. No Razor view or layout uses it yet; that starts when the dashboard screens are
