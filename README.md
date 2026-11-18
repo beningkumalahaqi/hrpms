@@ -185,7 +185,7 @@ A completed schema run lists six tables: `Departments`, `Employees`, `Positions`
 | ---- | -------- | ------ |
 | `db/01_schema.sql` | `EnterpriseHRDB` database, tables, keys, indexes | present |
 | `db/02_sp_GetDepartmentSummary.sql` | `dbo.sp_GetDepartmentSummary` department report | present (T03) |
-| `db/03_*.sql` | Seed data | pending (T04) |
+| `db/03_seed.sql` | Seed data for all five tables (test-matrix fixture set) | present (T04) |
 
 `db/01_schema.sql` creates the six tables in dependency order, with named `PK_`, `UQ_`,
 `FK_`, `CK_` and `DF_` constraints, plus indexes on the main foreign-key columns. It is
@@ -268,15 +268,17 @@ serving requests that touch the database.
 | T01 | Repository, Docker Compose SQL Server, README | done |
 | T02 | Database schema and `EnterpriseHRDB` creation | done |
 | T03 | Stored procedures and data-access queries | done |
-| T04 | Seed data | pending |
+| T04 | Seed data | done |
 | T05 | Solution and the four projects | pending |
 | T06+ | Application features | pending |
 
 The schema from T02 is in place, so `db-init` now actually runs `db/01_schema.sql`
 instead of reporting that it has nothing to do. T03 adds
 `dbo.sp_GetDepartmentSummary` in `db/02_sp_GetDepartmentSummary.sql`; both scripts are
-idempotent and re-run cleanly. The database is still empty of rows until the seed
-script (T04) lands.
+idempotent and re-run cleanly. T04 adds `db/03_seed.sql`, which fills the five data tables
+with the test-matrix fixture set (4 departments, 7 positions, 10 employees, 6 projects,
+7 assignments) and leaves `SalaryHistories` empty. The seed is skipped entirely once
+`dbo.Departments` has a row, so re-running `db-init` neither errors nor duplicates data.
 
 The design system export in `design-system/` is static reference material at this
 stage. No Razor view or layout uses it yet; that starts when the solution exists (T05).

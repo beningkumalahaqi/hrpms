@@ -10,7 +10,7 @@ container after it reports healthy.
 | ------ | -------- | ------ |
 | `01_schema.sql` | Database and schema creation | present (T02) |
 | `02_sp_GetDepartmentSummary.sql` | `dbo.sp_GetDepartmentSummary` department report | present (T03) |
-| `03_*.sql` | Seed / sample data | pending (T04) |
+| `03_seed.sql` | Seed data: 4 departments, 7 positions, 10 employees, 6 projects, 7 assignments | present (T04) |
 
 Rules for these scripts:
 
@@ -31,3 +31,12 @@ Expect `db-init` to print `Running /scripts/01_schema.sql` followed by
 `02_sp_GetDepartmentSummary.sql` uses `CREATE OR ALTER PROCEDURE`, so re-running it
 replaces the definition instead of failing. Its result-set column aliases are the
 `DepartmentSummaryDto` property names and must stay that way.
+
+`03_seed.sql` guards the whole seed with `IF NOT EXISTS (SELECT 1 FROM dbo.Departments)`,
+so it inserts nothing once the database has data. Foreign keys are resolved with
+subselects on `DepartmentCode`, `Title`, `EmployeeNumber` and `ProjectCode`, never
+hard-coded identity values, and employees are inserted managers-first because
+`ManagerId` references `Employees`. It leaves `SalaryHistories` empty. The rows are the
+test matrix fixture: IT active payroll (77,000,000) deliberately exceeds its 70,000,000
+budget, `OPS` has no employees, and E005 is inactive. To reseed from scratch, recreate the
+volume (`docker compose down -v`) and re-run `db-init`.
