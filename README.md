@@ -281,7 +281,8 @@ serving requests that touch the database.
 | T08 | DTOs, requests, common types | done |
 | T09 | Domain exceptions | done |
 | T10 | Domain interfaces | done |
-| T11+ | Application features | pending |
+| T11 | Repository base, transaction runner, SQL error translation | done |
+| T12+ | Application features | pending |
 
 The schema from T02 is in place, so `db-init` now actually runs `db/01_schema.sql`
 instead of reporting that it has nothing to do. T03 adds
@@ -342,6 +343,16 @@ at the contract level; the four single-record lookups return `Task<T?>` so calle
 what a missing row means (`NotFoundException`). Repositories speak DTOs and request types,
 never entities. The Domain project still contains no SQL, Dapper, or connection code and no
 implementations — only interfaces.
+
+T11 adds `src/EnterpriseHR.DataAccess/Infrastructure/RepositoryBase.cs`, the base every
+Dapper repository inherits. It exposes `OpenAsync` for single-statement calls, the only
+transaction runner in the solution (`ExecuteInTransactionAsync`, one connection and one
+`ReadCommitted` transaction that commits on success and rolls back with
+`CancellationToken.None` before rethrowing), plus `TranslateSql`, which maps SQL Server 2627
+and 2601 to `ConflictException` and 547 to `BusinessRuleException` while leaving every other
+`SqlException` untouched. The original error is wrapped as `InnerException`, so the SQL error
+number survives. No repository inherits it yet; T12 adds the first one, and from then on they
+call this helper instead of opening transactions themselves.
 
 The design system export in `design-system/` is static reference material at this
 stage. No Razor view or layout uses it yet; that starts when the dashboard screens are
