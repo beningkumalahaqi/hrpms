@@ -23,7 +23,8 @@ the log of what each stage added. The authoritative "what is done" summary is th
 | T15 | Employee soft delete with referential protection | done |
 | T16 | Salary adjustment and promotion with audit trail | done |
 | T17 | Project reads: list and QueryMultiple details | done |
-| T18+ | Application features | pending |
+| T18 | Project assignment with workload cap and duplicate protection | done |
+| T19+ | Application features | pending |
 
 ## T01–T04 — Infrastructure and database
 
@@ -76,7 +77,7 @@ T10 added the seven repository and service interfaces — 28 methods, `Cancellat
 ct = default` on every one, `Task<T?>` on the four single-record lookups, and DTO/request
 types (never entities) crossing the repository boundary.
 
-## T11–T17 — Data access
+## T11–T18 — Data access
 
 T11 added `RepositoryBase`: `OpenAsync`, the only transaction runner in the solution, and
 `TranslateSql` for SQL Server errors 2627/2601/547. See
@@ -139,9 +140,22 @@ Assignments are never filtered by employee or project status, so a Completed or 
 project still lists who worked on it and an inactive member appears with
 `IsEmployeeActive = false`. An unknown id returns null rather than an empty project.
 
+T18 added `AssignEmployeeToProjectAsync`, which completes `IProjectRepository`. One
+transaction covers the whole rule set: the allocation must be 1–100 and the role
+non-blank, the employee must exist and be active, the project must exist and be `Active` or
+`Planning`, the employee must not already be on that project, and the resulting workload
+must not exceed 100%. The workload is the sum of the employee's allocation across `Active`
+and `Planning` projects only (A4), so an assignment on a Completed or Cancelled project never
+blocks new work — the seed's E004 carries a 100% Completed assignment and can still take a
+100% Active one. The employee row is read with `UPDLOCK, ROWLOCK`, so two concurrent
+assignments for the same person serialize: the second one sees the first one's row and is
+rejected, and the workload can never pass 100%. The insert returns
+`SCOPE_IDENTITY()`, and `UQ_ProjectAssignments_Project_Employee` is translated to the same
+duplicate conflict as a race safety net.
+
 ## Next
 
-T18 onward adds the application features: the project write path and the report repository,
-the service implementations, the API controllers with exception-to-status-code middleware,
-and the Razor screens ported from `design-system/`. Repository registration in
+T19 onward adds the application features: the report repository, the service
+implementations, the API controllers with exception-to-status-code middleware, and the Razor
+screens ported from `design-system/`. Repository registration in
 `AddEnterpriseHrDataAccess` lands with the first service that resolves one.

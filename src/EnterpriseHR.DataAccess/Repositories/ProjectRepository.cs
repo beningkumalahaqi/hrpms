@@ -1,16 +1,18 @@
 using Dapper;
 using EnterpriseHR.DataAccess.Infrastructure;
 using EnterpriseHR.Domain.Dtos;
+using EnterpriseHR.Domain.Exceptions;
+using EnterpriseHR.Domain.Interfaces;
+using EnterpriseHR.Domain.Requests;
 
 namespace EnterpriseHR.DataAccess.Repositories;
 
 /// <summary>
-/// Project reads: the list with its active-member count, and the details view with every
-/// assignment. The write path arrives in a following stage, and <c>IProjectRepository</c>
-/// is added to the base list once its last member exists.
+/// Project reads and the assignment write path: the list with its active-member count, the
+/// details view with every assignment, and assigning an employee under the 100% workload rule.
 /// </summary>
 public sealed class ProjectRepository(IDbConnectionFactory factory)
-    : RepositoryBase(factory)
+    : RepositoryBase(factory), IProjectRepository
 {
     // One statement, one round trip. The Employees join carries the IsActive filter, so an
     // inactive member still has an assignment row but is not counted (COUNT skips NULLs).
@@ -64,6 +66,49 @@ public sealed class ProjectRepository(IDbConnectionFactory factory)
         ORDER BY e.FullName;
         """;
 
+    // UPDLOCK/ROWLOCK on the employee is what serializes concurrent assignments of the same
+    // person: the second request waits here, then sees the first one's row when it reads the
+    // workload in step 5.
+    private const string SelectEmployeeForAssignmentSql = """
+        SELECT Id, IsActive, FullName
+        FROM dbo.Employees WITH (UPDLOCK, ROWLOCK)
+        WHERE Id = @EmployeeId;
+        """;
+
+    private const string SelectProjectForAssignmentSql = """
+        SELECT Id, Status
+        FROM dbo.Projects
+        WHERE Id = @ProjectId;
+        """;
+
+    // UQ_ProjectAssignments_Project_Employee makes this an index seek on the unique key.
+    private const string SelectAssignmentExistsSql = """
+        SELECT CAST(CASE WHEN EXISTS (
+                   SELECT 1 FROM dbo.ProjectAssignments
+                   WHERE ProjectId = @ProjectId AND EmployeeId = @EmployeeId)
+               THEN 1 ELSE 0 END AS BIT);
+        """;
+
+    // A4: only Active and Planning projects count toward the workload. Completed and
+    // Cancelled assignments belong to finished work and are ignored.
+    private const string SelectCurrentAllocationSql = """
+        SELECT ISNULL(SUM(pa.AllocationPercentage), 0)
+        FROM dbo.ProjectAssignments pa
+        INNER JOIN dbo.Projects p ON p.Id = pa.ProjectId
+        WHERE pa.EmployeeId = @EmployeeId
+          AND p.Status IN ('Active', 'Planning');
+        """;
+
+    // AssignedDate is left to DF_ProjectAssignments_AssignedDate.
+    private const string InsertAssignmentSql = """
+        INSERT INTO dbo.ProjectAssignments
+            (ProjectId, EmployeeId, RoleInProject, AllocationPercentage)
+        VALUES
+            (@ProjectId, @EmployeeId, @RoleInProject, @AllocationPercentage);
+
+        SELECT CAST(SCOPE_IDENTITY() AS INT);
+        """;
+
     public async Task<IReadOnlyList<ProjectListItemDto>> GetAllProjectsAsync(
         CancellationToken ct = default)
     {
@@ -96,5 +141,115 @@ public sealed class ProjectRepository(IDbConnectionFactory factory)
         project.Members = (await grid.ReadAsync<ProjectMemberDto>()).ToList();
 
         return project;
+    }
+
+    public async Task<int> AssignEmployeeToProjectAsync(
+        int projectId,
+        AssignEmployeeRequest request,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        // Cheap input checks first: they need no database round trip and cannot depend on
+        // the transaction's view of the data.
+        if (request.AllocationPercentage is < 1 or > 100)
+        {
+            throw new BusinessRuleException(
+                "Allocation percentage must be between 1 and 100.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.RoleInProject))
+        {
+            throw new BusinessRuleException("Role in project is required.");
+        }
+
+        return await ExecuteInTransactionAsync(
+            async (conn, tx) =>
+            {
+                // Locking the employee serializes every concurrent assignment that would
+                // change this person's workload, so the check in step 5 cannot be raced.
+                var employee = await conn.QuerySingleOrDefaultAsync<EmployeeAssignmentState>(
+                    new CommandDefinition(SelectEmployeeForAssignmentSql,
+                        new { request.EmployeeId }, transaction: tx, cancellationToken: ct));
+
+                if (employee is null)
+                {
+                    throw new NotFoundException($"Employee {request.EmployeeId} was not found.");
+                }
+
+                if (!employee.IsActive)
+                {
+                    throw new BusinessRuleException("Employee is not active.");
+                }
+
+                var project = await conn.QuerySingleOrDefaultAsync<ProjectAssignmentState>(
+                    new CommandDefinition(SelectProjectForAssignmentSql,
+                        new { projectId }, transaction: tx, cancellationToken: ct));
+
+                if (project is null)
+                {
+                    throw new NotFoundException($"Project {projectId} was not found.");
+                }
+
+                if (project.Status is not ("Active" or "Planning"))
+                {
+                    throw new BusinessRuleException(
+                        $"Project status '{project.Status}' does not accept new assignments.");
+                }
+
+                var alreadyAssigned = await conn.ExecuteScalarAsync<bool>(
+                    new CommandDefinition(SelectAssignmentExistsSql,
+                        new { projectId, request.EmployeeId }, transaction: tx, cancellationToken: ct));
+
+                if (alreadyAssigned)
+                {
+                    throw new ConflictException("Employee is already assigned to this project.");
+                }
+
+                var currentAllocation = await conn.ExecuteScalarAsync<int>(
+                    new CommandDefinition(SelectCurrentAllocationSql,
+                        new { request.EmployeeId }, transaction: tx, cancellationToken: ct));
+
+                var total = currentAllocation + request.AllocationPercentage;
+
+                if (total > 100)
+                {
+                    throw new ConflictException(
+                        $"Allocation would reach {total}% (current {currentAllocation}% + "
+                        + $"requested {request.AllocationPercentage}%). Maximum is 100%.");
+                }
+
+                // The UQ_ProjectAssignments_Project_Employee constraint is the real guard
+                // against two concurrent identical assignments; the check above only exists
+                // to produce a readable message.
+                return await ExecuteSqlAsync(async () =>
+                    await conn.ExecuteScalarAsync<int>(
+                        new CommandDefinition(InsertAssignmentSql, new
+                        {
+                            projectId,
+                            request.EmployeeId,
+                            request.RoleInProject,
+                            request.AllocationPercentage,
+                        }, transaction: tx, cancellationToken: ct)));
+            },
+            ct);
+    }
+
+    /// <summary>The employee fields the assignment rules need, read under UPDLOCK.</summary>
+    private sealed class EmployeeAssignmentState
+    {
+        public int Id { get; set; }
+
+        public bool IsActive { get; set; }
+
+        public string FullName { get; set; } = string.Empty;
+    }
+
+    /// <summary>The project fields the assignment rules need.</summary>
+    private sealed class ProjectAssignmentState
+    {
+        public int Id { get; set; }
+
+        public string Status { get; set; } = string.Empty;
     }
 }
