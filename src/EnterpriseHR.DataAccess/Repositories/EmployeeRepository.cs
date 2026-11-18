@@ -6,17 +6,17 @@ using EnterpriseHR.Domain.Common;
 using EnterpriseHR.Domain.Dtos;
 using EnterpriseHR.Domain.Entities;
 using EnterpriseHR.Domain.Exceptions;
+using EnterpriseHR.Domain.Interfaces;
 using EnterpriseHR.Domain.Requests;
 
 namespace EnterpriseHR.DataAccess.Repositories;
 
 /// <summary>
-/// Employee reads and writes. This file owns the read paths (T13); the write paths land in
-/// separate partial files, and <c>IEmployeeRepository</c> is added to the base list once the
-/// last of its members exists.
+/// Employee reads and writes: paged reads, create/update, soft delete, and salary
+/// adjustment with its audit row.
 /// </summary>
 public sealed partial class EmployeeRepository(IDbConnectionFactory factory)
-    : RepositoryBase(factory)
+    : RepositoryBase(factory), IEmployeeRepository
 {
     private const int MaxPageSize = 100;
 
@@ -170,6 +170,35 @@ public sealed partial class EmployeeRepository(IDbConnectionFactory factory)
         UPDATE dbo.Employees
         SET IsActive = 0
         WHERE Id = @Id;
+        """;
+
+    // UPDLOCK/ROWLOCK holds the employee row for the whole adjustment, so two concurrent
+    // adjustments cannot both read the same OldSalary.
+    private const string SelectEmployeeSalaryStateSql = """
+        SELECT Id, PositionId, Salary, IsActive
+        FROM dbo.Employees WITH (UPDLOCK, ROWLOCK)
+        WHERE Id = @Id;
+        """;
+
+    private const string SelectPositionForSalarySql = """
+        SELECT Id, Title, MinSalary, MaxSalary
+        FROM dbo.Positions
+        WHERE Id = @Id;
+        """;
+
+    private const string UpdateEmployeeSalarySql = """
+        UPDATE dbo.Employees
+        SET Salary     = @NewSalary,
+            PositionId = @PositionId
+        WHERE Id = @Id;
+        """;
+
+    // ChangedAt is left to DF_SalaryHistories_ChangedAt.
+    private const string InsertSalaryHistorySql = """
+        INSERT INTO dbo.SalaryHistories
+            (EmployeeId, OldSalary, NewSalary, ChangeReason)
+        VALUES
+            (@Id, @OldSalary, @NewSalary, @Reason);
         """;
 
     public async Task<PagedResult<EmployeeDto>> GetAllEmployeesAsync(
@@ -450,6 +479,74 @@ public sealed partial class EmployeeRepository(IDbConnectionFactory factory)
             ct);
     }
 
+    public async Task UpdateEmployeeSalaryAsync(
+        int id,
+        UpdateSalaryRequest request,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        await ExecuteInTransactionAsync(
+            async (conn, tx) =>
+            {
+                // The row stays locked until commit, so a concurrent adjustment cannot read the
+                // same OldSalary or interleave with the update below.
+                var current = await conn.QuerySingleOrDefaultAsync<EmployeeSalaryState>(
+                    new CommandDefinition(SelectEmployeeSalaryStateSql, new { id },
+                        transaction: tx, cancellationToken: ct));
+
+                if (current is null)
+                {
+                    throw new NotFoundException($"Employee {id} was not found.");
+                }
+
+                if (!current.IsActive)
+                {
+                    throw new BusinessRuleException("Cannot adjust the salary of an inactive employee.");
+                }
+
+                // No NewPositionId means "same position"; the range check still applies.
+                var targetPositionId = request.NewPositionId ?? current.PositionId;
+
+                var position = await conn.QuerySingleOrDefaultAsync<PositionSalaryInfo>(
+                    new CommandDefinition(SelectPositionForSalarySql, new { id = targetPositionId },
+                        transaction: tx, cancellationToken: ct));
+
+                if (position is null)
+                {
+                    throw new BusinessRuleException("Target position not found.");
+                }
+
+                if (request.NewSalary < position.MinSalary || request.NewSalary > position.MaxSalary)
+                {
+                    throw new BusinessRuleException(
+                        $"New salary {request.NewSalary:N0} is outside the allowed range "
+                        + $"{position.MinSalary:N0} – {position.MaxSalary:N0} for position '{position.Title}'.");
+                }
+
+                if (request.NewSalary == current.Salary && targetPositionId == current.PositionId)
+                {
+                    throw new BusinessRuleException("Nothing to change.");
+                }
+
+                // Both writes share tx: a failure on either rolls the other back too (A1).
+                await conn.ExecuteAsync(new CommandDefinition(UpdateEmployeeSalarySql,
+                    new { id, request.NewSalary, PositionId = targetPositionId },
+                    transaction: tx, cancellationToken: ct));
+
+                await conn.ExecuteAsync(new CommandDefinition(InsertSalaryHistorySql,
+                    new
+                    {
+                        id,
+                        OldSalary = current.Salary,
+                        request.NewSalary,
+                        request.Reason,
+                    },
+                    transaction: tx, cancellationToken: ct));
+            },
+            ct);
+    }
+
     private static async Task<bool> DepartmentExistsAsync(
         DbConnection conn,
         int departmentId,
@@ -517,6 +614,30 @@ public sealed partial class EmployeeRepository(IDbConnectionFactory factory)
         public int Id { get; set; }
 
         public bool IsActive { get; set; }
+    }
+
+    /// <summary>Current salary and position, read under UPDLOCK by the adjustment path.</summary>
+    private sealed class EmployeeSalaryState
+    {
+        public int Id { get; set; }
+
+        public int PositionId { get; set; }
+
+        public decimal Salary { get; set; }
+
+        public bool IsActive { get; set; }
+    }
+
+    /// <summary>The target position's bounds and title, used for the range error message.</summary>
+    private sealed class PositionSalaryInfo
+    {
+        public int Id { get; set; }
+
+        public string Title { get; set; } = string.Empty;
+
+        public decimal MinSalary { get; set; }
+
+        public decimal MaxSalary { get; set; }
     }
 }
 

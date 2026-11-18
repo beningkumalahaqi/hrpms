@@ -21,7 +21,8 @@ the log of what each stage added. The authoritative "what is done" summary is th
 | T13 | Employee read operations (multi-mapping) | done |
 | T14 | Employee create/update | done |
 | T15 | Employee soft delete with referential protection | done |
-| T16+ | Application features | pending |
+| T16 | Salary adjustment and promotion with audit trail | done |
+| T17+ | Application features | pending |
 
 ## T01–T04 — Infrastructure and database
 
@@ -74,7 +75,7 @@ T10 added the seven repository and service interfaces — 28 methods, `Cancellat
 ct = default` on every one, `Task<T?>` on the four single-record lookups, and DTO/request
 types (never entities) crossing the repository boundary.
 
-## T11–T15 — Data access
+## T11–T16 — Data access
 
 T11 added `RepositoryBase`: `OpenAsync`, the only transaction runner in the solution, and
 `TranslateSql` for SQL Server errors 2627/2601/547. See
@@ -117,9 +118,18 @@ Planning, Completed and Cancelled projects do not block, and neither does an ass
 a project the employee finished. There is no `DELETE FROM dbo.Employees` anywhere in the
 solution, so an employee is never physically removed.
 
+T16 added `UpdateEmployeeSalaryAsync`, the salary-adjustment and promotion workflow. It runs
+in one transaction: the employee row is re-read under `UPDLOCK`, an inactive employee is
+rejected as a business rule (A1), the target position — `NewPositionId` or the current one —
+must exist and the new salary must fall inside its range, and a request that changes neither
+salary nor position is refused as a no-op. The method then updates `Salary`/`PositionId` and
+inserts one `SalaryHistories` row (old salary, new salary, reason, default `ChangedAt`) on
+the same transaction, so a failure in either write rolls both back. With this member in
+place `EmployeeRepository` implements `IEmployeeRepository`.
+
 ## Next
 
-T16 onward adds the application features: the remaining repository methods
-(`UpdateEmployeeSalaryAsync` with a `SalaryHistories` row, the project repository and
-report repository), the service implementations over them, the API controllers with
-exception-to-status-code middleware, and the Razor screens ported from `design-system/`.
+T17 onward adds the application features: the project and report repositories, the service
+implementations, the API controllers with exception-to-status-code middleware, and the Razor
+screens ported from `design-system/`. Repository registration in
+`AddEnterpriseHrDataAccess` lands with the first service that resolves one.
