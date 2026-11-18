@@ -24,7 +24,8 @@ the log of what each stage added. The authoritative "what is done" summary is th
 | T16 | Salary adjustment and promotion with audit trail | done |
 | T17 | Project reads: list and QueryMultiple details | done |
 | T18 | Project assignment with workload cap and duplicate protection | done |
-| T19+ | Application features | pending |
+| T19 | Report repository: department summary via stored procedure | done |
+| T20+ | Application features | pending |
 
 ## T01–T04 — Infrastructure and database
 
@@ -77,7 +78,7 @@ T10 added the seven repository and service interfaces — 28 methods, `Cancellat
 ct = default` on every one, `Task<T?>` on the four single-record lookups, and DTO/request
 types (never entities) crossing the repository boundary.
 
-## T11–T18 — Data access
+## T11–T19 — Data access
 
 T11 added `RepositoryBase`: `OpenAsync`, the only transaction runner in the solution, and
 `TranslateSql` for SQL Server errors 2627/2601/547. See
@@ -153,9 +154,20 @@ rejected, and the workload can never pass 100%. The insert returns
 `SCOPE_IDENTITY()`, and `UQ_ProjectAssignments_Project_Employee` is translated to the same
 duplicate conflict as a race safety net.
 
+T19 added `ReportRepository`, which completes `IReportRepository` and therefore the
+repository layer. It has a single method, `GetDepartmentSummaryAsync`, which calls
+`dbo.sp_GetDepartmentSummary` as a stored procedure (`CommandType.StoredProcedure`) rather
+than sending SQL text: no parameters, one round trip, and the aggregation stays in one
+server-side plan. The procedure aggregates employees and projects through two CTEs so the
+joins cannot multiply rows, and its aliases already match `DepartmentSummaryDto`, so Dapper
+maps all eight columns directly and the DTO computes `IsOverBudget`. It returns all four
+departments in name order — `FIN`, `HR`, `IT`, `OPS` — including OPS, which has no active
+employees, so its salary is 0 and its whole budget is still available. Only IT is over
+budget: 77,000,000 in monthly salary against a 70,000,000 budget leaves −7,000,000.
+
 ## Next
 
-T19 onward adds the application features: the report repository, the service
-implementations, the API controllers with exception-to-status-code middleware, and the Razor
-screens ported from `design-system/`. Repository registration in
-`AddEnterpriseHrDataAccess` lands with the first service that resolves one.
+T20 onward adds the application features: the service implementations, the API controllers
+with exception-to-status-code middleware, and the Razor screens ported from
+`design-system/`. Repository registration in `AddEnterpriseHrDataAccess` lands with the
+first service that resolves one.
