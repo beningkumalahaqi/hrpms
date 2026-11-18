@@ -223,8 +223,9 @@ pipeline.
 
 ## Running the Applications
 
-The solution is created in T05. The commands below apply once
-`EnterpriseHRSystem.sln` and the four projects exist.
+The solution `EnterpriseHRSystem.sln` and the four projects exist. The commands below work
+from the repository root; the dev ports come from each project's
+`Properties/launchSettings.json`.
 
 | Application | URL |
 | ----------- | --- |
@@ -250,7 +251,7 @@ serving requests that touch the database.
 ├── docker-compose.yml          # SQL Server 2022 + db-init
 ├── .env.example                # template for local secrets
 ├── AGENTS.md                   # guidance for coding agents: design, docs, memory
-├── EnterpriseHRSystem.sln      # solution (T05)
+├── EnterpriseHRSystem.sln      # solution: the four projects below
 ├── db/                         # SQL init scripts, run by db-init
 ├── design-system/              # exported HR Workspace UI reference (tokens, screens, states)
 ├── docs/                       # supporting documentation (created with the first design note)
@@ -269,7 +270,7 @@ serving requests that touch the database.
 | T02 | Database schema and `EnterpriseHRDB` creation | done |
 | T03 | Stored procedures and data-access queries | done |
 | T04 | Seed data | done |
-| T05 | Solution and the four projects | pending |
+| T05 | Solution and the four projects | done |
 | T06+ | Application features | pending |
 
 The schema from T02 is in place, so `db-init` now actually runs `db/01_schema.sql`
@@ -280,8 +281,16 @@ with the test-matrix fixture set (4 departments, 7 positions, 10 employees, 6 pr
 7 assignments) and leaves `SalaryHistories` empty. The seed is skipped entirely once
 `dbo.Departments` has a row, so re-running `db-init` neither errors nor duplicates data.
 
+T05 adds `EnterpriseHRSystem.sln` and the four projects under `src/`, wired
+`DataAccess → Domain` and `{WebApp, Api} → {Domain, DataAccess}`. `dotnet build
+EnterpriseHRSystem.sln` succeeds with no warnings, the MVC host serves on
+<http://localhost:5100>, and the API serves Swagger UI on <http://localhost:5200/swagger>.
+The projects are still templates: `Program.cs`, the Razor views, and the controllers carry
+no HR features yet. T04's seed data exists but nothing reads it until T06.
+
 The design system export in `design-system/` is static reference material at this
-stage. No Razor view or layout uses it yet; that starts when the solution exists (T05).
+stage. No Razor view or layout uses it yet; that starts when the dashboard screens are
+ported.
 
 ## Reset and Troubleshooting
 
