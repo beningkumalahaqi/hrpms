@@ -43,7 +43,7 @@ the log of what each stage added. The authoritative "what is done" summary is th
 | T33.5 | Sidebar navigation, dashboard at `/`, and a reorganised employee filter panel | done |
 | T33.6 | Form grid alignment on Create/Edit/add-member, and "project directory" naming | done |
 | T33.7 | Documentation and code-comment cleanup across the repository | done |
-| T34+ | Final review and deployment | pending |
+| T34 | README for a fresh clone, acceptance matrix, dead-file removal, final review | done |
 
 ## T01–T04: Infrastructure and database
 
@@ -455,7 +455,7 @@ T27 turns the MVC host from the template into the HR Workspace shell. The visual
 buttons, panels, tables, pagination, states), followed by one labelled section for the pieces
 the export does not ship. Bootstrap CSS, Bootstrap Icons and the scoped
 `EnterpriseHR.WebApp.styles.css` link are gone from the layout; the `wwwroot/lib/bootstrap`
-files stay on disk for a later cleanup, but nothing references them.
+files stayed on disk until T34, which deleted them along with the scoped stylesheet.
 
 The export's shell is a sidebar with a topbar. The task requires top navigation, so
 `_Layout.cshtml` composes the same brand, `.nav-item` (`.is-active` plus `aria-current="page"`)
@@ -798,7 +798,8 @@ afford one, the sidebar does not need it now that `/` is the dashboard.
 `{controller=Dashboard}/{action=Index}/{id?}`. That is one action and one view reached by two
 URLs; no view, controller or redirect was copied. `Tag Helpers` suppress route values equal to
 the defaults, so the Dashboard nav item renders `href="/"`, and `Error.cshtml`'s link now reads
-"Back to dashboard". `HomeController` stays for `Error` and the unlinked `Index`/`Privacy` pages.
+"Back to dashboard". `HomeController` stays for `Error` and the unlinked `Index` page; the template
+`Privacy` page and its action were deleted in T34.
 
 **The employee filter panel was reorganised.** The old grid was `2fr 1fr 1fr` with the checkbox
 in the third column and a submit row that left a wide empty gap; search, department and
@@ -923,15 +924,100 @@ pattern, the "salary and position are absent from the update statement (A3)" not
 the untranslated-`SqlException` safety net.
 
 **Verified.** `dotnet build EnterpriseHRSystem.sln` reports 0 warnings and 0 errors. All six MVC
-screens, `Home/Index`, `Home/Privacy`, the three API routes and Swagger return 200; an unknown path
+screens, `Home/Index`, the three API routes and Swagger return 200; an unknown path
 returns 404. `requests.http` passes 63/63 and the seed is back to `4|10|9|6|7|0` with both test
 salaries restored. Chromium at 1440, 1280, 1024 and 768 shows the table at 1280px and up, record
 cards below it, and no horizontal overflow, which is what the corrected comments now say.
 
+## T34: README for a fresh clone, acceptance matrix, final review
+
+T34 is the acceptance pass. It rewrote the README against the finished application, wrote the
+acceptance matrix, deleted the template files T27 flagged, and worked through the review
+checklist with the host, the database and a browser open.
+
+**The README is a front page again, and a complete one.** It keeps the T01 material (the stack
+table, the four-project responsibilities with their dependency direction, prerequisites, the
+`.env` rules, `docker compose up -d`, `db-init` run/rerun/reset, the connection-string key with the
+`ConnectionStrings__EnterpriseHR` override, the single-host URLs including Swagger, the repository
+layout and the troubleshooting list) and adds the A1–A7 business rules. Everything that would
+have made it long lives in `docs/` and is linked. Two stale statements went with the rewrite: the
+introduction still said the project "is being built in stages", and the README claimed the code
+block inside `docker-compose.yml`; both described an earlier state.
+
+**`docs/TEST-SCENARIOS.md` is the acceptance matrix.** Two tables, 22 API rows and 17 browser
+rows. Every row carries Given / When / Expected plus the **measured** result, because a row marked
+passed from reading the code proves nothing. It is linked from `docs/index.md`, the README and
+`TEST-SCENARIO-API.md`, which keeps the per-group API detail. The reset SQL at the bottom restores
+the seven seed assignments, the two test salaries and the deactivated employee.
+
+**All 39 rows pass.** The API table was driven with `curl` and asserted against the database before
+and after each write; the browser table was driven with `agent-browser` against Chromium, with
+the form fields filled through the real controls rather than by posting directly. Beyond the
+required 27 rows, the matrix also covers LIKE-wildcard escaping (`search=%` returns 0 rows),
+paging bounds (`pageSize=101`, `pageSize=0`, `page=0` each return 400 naming the field), the
+permanently active-only list filter, an unknown employee id, an empty JSON body, truncated JSON, a
+`text/plain` request, the API root, and a SQL-down 500. On the MVC side it adds the empty Create
+form, a POST without the antiforgery token, a wrong method on a GET-only page, and paging once
+M03 has created a tenth employee.
+
+**Rejected writes were proved to write nothing.** A02, A05, A06, A08, A09, A10 and M09 each
+compared the assignment count, the history row count and the employee's salary/position before and
+after; all three were unchanged in every case. A04 is the interesting one: the promotion succeeds,
+and the follow-up attempt at a salary below the new band leaves the promoted state exactly as the
+first call left it, so the rollback path is exercised on a transaction that had already committed
+once.
+
+**Two real findings, both fixed.** The first was in this stage's own reset SQL: its `NOT IN` list
+omitted the `PRJ-005`/`E009` seed pair, so running it deleted a seed row. It now matches against the
+seven seed pairs from `db/03_seed.sql` with `NOT EXISTS`, which keeps only those rows, and the
+query was verified by adding a stray assignment, running it, and confirming exactly seven rows
+survive. The second was a false alarm worth recording: the Create form appeared to omit
+`aria-invalid` on an empty submit. It does not. jQuery's client pass sets `.input-validation-error`
+and blocks the post; a posted form that bypasses unobtrusive validation renders `aria-invalid="true"`
+on all seven invalid controls. The CSS bridge in `site.css` exists for exactly that gap.
+
+**Dead files deleted.** `wwwroot/lib/bootstrap` (7.2 MB, 45 tracked files), the MVC template scoped
+stylesheet `Views/Shared/_Layout.cshtml.css`, the template `Views/Home/Privacy.cshtml` and its
+controller action, and the stub `Api/EnterpriseHR.Api.http`. Nothing referenced any of them: the
+layout loads only `~/css/site.css`, `~/js/site.js` and `~/lib/jquery`, the validation partial adds
+the two jQuery validation files, and `requests.http` is the real HTTP collection. Deleting
+`Privacy.cshtml` without its action would have failed at runtime rather than at build, so both went
+together.
+
+**Review checklist, each item verified rather than assumed.**
+
+| Item | Result |
+| ---- | ------ |
+| `dotnet build` | 0 errors, 0 warnings; `-warnaserror` clean; `dotnet format --verify-no-changes --diagnostics IDE0005` reports 0 of 72 files changed |
+| No physical employee delete | no `DELETE FROM ... Employees` in `src/` or `db/`; deactivation sets `IsActive = 0` |
+| No SQL injection | the only interpolated strings in the repositories are `const` SQL composition and exception messages; every request value is a Dapper parameter |
+| Async Dapper only | 15 public repository methods, all `async Task` with `CancellationToken ct = default`; 29 `cancellationToken: ct` call sites; no sync call, `.Result` or `.Wait()` |
+| Multi-mapping | `GetAllEmployeesAsync` uses `QueryAsync<Employee, Department, Position, Employee, EmployeeDto>` with `splitOn: "Id,Id,Id"` and a cancellation check immediately before it |
+| Multi-result | `GetProjectDetailsAsync` uses `QueryMultipleAsync` with `ReadFirstOrDefaultAsync` and `ReadAsync` |
+| Transactions | `DeleteEmployeeAsync`, `UpdateEmployeeSalaryAsync` and `AssignEmployeeToProjectAsync` run through `ExecuteInTransactionAsync`, which commits or rolls back and rethrows |
+| Envelope everywhere | application 400/404/405/409/500 responses all carry `{ success, message, data }`; `GET /api` and unknown routes are enveloped too |
+| Framework bodies | a 415, and JSON that fails before model binding, return ASP.NET Core's `application/problem+json`; documented as an exception the contract does not claim |
+| Layer direction | Domain none; DataAccess to Domain; Api to Domain and DataAccess; WebApp to Domain, DataAccess and Api; Api has no `Program.cs`, `appsettings` or launch profile |
+| DI lifetimes | connection factory singleton; four repositories and three services scoped; `AddEnterpriseHrDataAccess` called once, in `Program.cs` |
+| Fresh clone | cloned to a temp directory, built with 0 warnings, ran `db-init` twice (idempotent, seed unchanged), started the host, and got 200 from `/`, `/Employees`, `/api/**` and `/swagger/index.html` |
+
+**Verified.** `requests.http` passes 63/63 after the deletions. Every route still answers: the six
+MVC screens, `Home/Index`, Swagger and Swagger's JSON, and the API. `/Home/Privacy` now returns 404,
+which is the intended result of deleting both halves, and `wwwroot/lib/bootstrap` requests are gone
+with the directory. Client-side validation still loads (`jQuery`, `validator`,
+`validator.unobtrusive` all present on the Create page) and still flags six fields on an empty
+submit. The seed is back to `4|10|9|6|7|0|12000000.00|22000000.00|2`.
+
+**Not changed, deliberately.** `Home/Index` is still an unlinked page reachable only by URL; it
+renders the three module cards, which is a working screen rather than dead code. `GenerateDocumentationFile`
+stays off, so the CS1591 warnings stay off with it. `site.css` keeps the design-system extensions
+T27–T33 recorded; they are documented additions, not leftovers.
+
 ## Next
 
-The module set is complete: every nav item renders a real screen. T34 is the final review:
-scope check across the four projects, the production build, the design-system extensions recorded
-in `flag-for-t34.md`, and the deployment pass (Docker SQL setup, build, run) that was intentionally
-left for last. Each new endpoint still gets a group in `requests.http` and a section in
-`docs/TEST-SCENARIO-API.md`; the Projects screen still has no filters of its own.
+Nothing is pending. Every stage in the table above is `done`, the acceptance matrix passes on a
+fresh clone, and the four projects match the required architecture. Further work is a new task, not
+a remaining stage: the API has no employee write endpoints and no project list, the duplicates
+listed in `agents/memory/flag-for-t34.md` (view model versus request contract, the repeated
+`Invalid(field)` helper, `site.js` versus inline scripts) are refactors rather than defects, and
+authentication remains explicitly out of scope.

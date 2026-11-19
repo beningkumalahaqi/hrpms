@@ -343,9 +343,9 @@ Porting rules for the MVC screens:
 | `Views/Dashboard/Index.cshtml` | The budget dashboard, typed directly to `IReadOnlyList<DepartmentSummaryDto>`: `.stats-grid` totals on top, then a `.data-table` of Code, Department, Active employees, Monthly payroll, Budget, Remaining and Active projects plus a budget-status badge; record cards below 1280px. Over-budget rows use `.over-budget` with `.negative`/`.badge.over` (`#i-alert`), so the state is carried by colour, an icon and the words. OPS appears with zeros because the procedure left joins from `Departments`. |
 | `Views/Shared/Error.cshtml` | The design-system error state for `HomeController.Error`, reached by `UseExceptionHandler` and by status-code re-execution; the action puts the original status back on the response. |
 
-Bootstrap is not referenced by the layout. `wwwroot/lib/bootstrap` and the template
-`Views/Shared/_Layout.cshtml.css` still exist on disk but nothing links them. Every nav item
-resolves to a real screen (Dashboard, Employees, Projects), so no link in the app answers the
+Bootstrap is not referenced by the layout, and the Bootstrap assets, the MVC template scoped CSS
+(`Views/Shared/_Layout.cshtml.css`) and the template privacy page were deleted in T34. Every nav
+item resolves to a real screen (Dashboard, Employees, Projects), so no link in the app answers the
 branded 404. New screens start from `.page`, `.page-header`, `.panel`, `.data-table`, `.field`
 and the `.button` variants instead of new CSS.
 

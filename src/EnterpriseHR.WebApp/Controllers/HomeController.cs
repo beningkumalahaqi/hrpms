@@ -18,11 +18,6 @@ public class HomeController : Controller
         return View();
     }
 
-    public IActionResult Privacy()
-    {
-        return View();
-    }
-
     // Reached two ways: UseExceptionHandler("/Home/Error") without a code in non-Development,
     // and UseStatusCodePagesWithReExecute("/Home/Error", "?code={0}") for body-less MVC
     // statuses. The original status is put back on the response so a 404 page answers 404.

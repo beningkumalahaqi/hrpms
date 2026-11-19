@@ -9,8 +9,9 @@ would bloat it lives here.
 | [getting-started.md](getting-started.md) | Prerequisites, `.env`, Docker Compose SQL Server, `db-init`, connection strings, the dev URL, reset and troubleshooting (including Apple Silicon). |
 | [architecture.md](architecture.md) | Project responsibilities, dependency direction, DI wiring, transaction and error-translation rules, and the UI/design-system contract. |
 | [database.md](database.md) | `EnterpriseHRDB` tables, constraints, indexes, `dbo.sp_GetDepartmentSummary`, seed fixtures, and the rules for `db/` scripts. |
-| [TEST-SCENARIO-API.md](TEST-SCENARIO-API.md) | The API scenario matrix: every route, its success path and every failure path with the status to expect. Paired with `src/EnterpriseHR.Api/requests.http`. |
-| [development-stages.md](development-stages.md) | The T01–T33.7 stage log: what each stage added and what is still pending. |
+| [TEST-SCENARIOS.md](TEST-SCENARIOS.md) | The acceptance matrix: 22 API rows and 17 browser rows, each with Given / When / Expected and the measured result, plus the seed-reset SQL. Start here to accept a build. |
+| [TEST-SCENARIO-API.md](TEST-SCENARIO-API.md) | The detailed API scenario reference: every route, its success path and every failure path with the status to expect. Paired with `src/EnterpriseHR.Api/requests.http`. |
+| [development-stages.md](development-stages.md) | The T01–T34 stage log: what each stage added and how it was verified. |
 
 Related reference material that does not belong in `docs/`:
 

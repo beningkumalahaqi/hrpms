@@ -9,6 +9,10 @@ file carries a `# ->` comment stating the status and payload to assert.
 "press this and see" document. The response shapes themselves live in
 [architecture.md](architecture.md) -> "API conventions" and "Endpoints".
 
+For acceptance, use [TEST-SCENARIOS.md](TEST-SCENARIOS.md): it carries these scenarios as an
+API table plus the MVC browser table, with the measured result per row. This file keeps the
+per-group detail behind those rows.
+
 ## Preconditions
 
 ```bash
