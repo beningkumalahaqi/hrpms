@@ -1,5 +1,7 @@
 # Enterprise HR & Project Management System
 
+**Live application:** <http://haqihrmanagement.runasp.net/> (hosted on MonsterASP.NET with SQL Server)
+
 An internal HR and project-management application built on .NET 8 and SQL Server 2022. It
 combines a server-rendered admin dashboard for HR staff with a documented REST API for
 system-to-system integration, both reading and writing the same `EnterpriseHRDB` database
