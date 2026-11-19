@@ -355,6 +355,15 @@ small { font-size: var(--text-sm); }
   .project-overview { grid-template-columns: 1fr; }
 }
 
+/* The persistent sidebar takes a column the tables used to have. The export's breakpoint
+   table puts full tables at 1280px and up, so below that the list panels use the record
+   cards they already render for the mobile layout; an eight-column table in the 761-950px
+   the sidebar leaves would otherwise push the whole document sideways. */
+@media (max-width: 1279px) {
+  .desktop-table { display: none; }
+  .mobile-records { display: block; }
+}
+
 @media (max-width: 1023px) {
   .app-shell { grid-template-columns: minmax(0, 1fr); }
   .sidebar { position: fixed; left: 0; width: min(20rem, calc(100% - 3rem)); transform: translateX(-105%); transition: transform 220ms ease-out; }
@@ -364,8 +373,6 @@ small { font-size: var(--text-sm); }
   .button.menu-button { display: inline-flex; }
   .topbar { padding-inline: var(--space-3); }
   .main-content { padding: var(--space-3); }
-  .desktop-table { display: none; }
-  .mobile-records { display: block; }
   .api-layout { grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr); }
 }
 
@@ -421,29 +428,21 @@ small { font-size: var(--text-sm); }
 
 
 /* ---------------------------------------------------------------------------
-   Application shell (T27)
+   Application shell
 
-   The export composes a sidebar, a topbar and a footer. T27 requires top
-   navigation, so the same brand, .nav-item and topbar tokens are composed into
-   one sticky header, and the footer reuses the .ds-footer treatment.
-   Components that the export does not ship (inline alerts) are extended from
-   its success/warning/error token pairs rather than invented.
+   The export's own composition: a persistent sidebar, then the workspace column
+   with its topbar. The sidebar and topbar rules above are the export's ported
+   ones; only the two sidebar alignments below are local.
+   Components the export does not ship (inline alerts) are extended from its
+   success/warning/error token pairs rather than invented.
    --------------------------------------------------------------------------- */
 
 .icon-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
 .od-icon { fill: none; stroke: currentColor; stroke-width: 1.8; }
 
-.site-header { position: sticky; z-index: 40; top: 0; background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
-.site-header-inner { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); width: min(100%, 100rem); margin: 0 auto; padding: 0.75rem var(--space-4); }
-.site-brand { display: flex; flex-direction: column; gap: 0.125rem; padding: 0.25rem 0; text-decoration: none; }
-.site-brand .brand-name { color: var(--color-text); }
-.site-brand .brand-caption { line-height: 1.2; }
-.site-nav { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-half); margin-left: auto; }
-.site-nav .nav-item { text-decoration: none; white-space: nowrap; }
-.site-nav .nav-item .od-icon { flex: none; }
-.site-footer { width: min(100%, 100rem); margin: 0 auto; padding: 0 var(--space-4) var(--space-4); color: var(--color-text-secondary); font-size: var(--text-sm); }
-.site-footer-inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-1); padding-top: var(--space-2); border-top: 1px solid var(--color-border); }
-.site-footer a { color: var(--color-primary); }
+.sidebar .brand, .sidebar .side-nav, .sidebar .sidebar-note { flex: none; }
+.sidebar .brand-name { color: var(--color-text); }
+.sidebar .nav-item .od-icon { flex: none; }
 
 /* Inline alert. The export has .toast and .error-summary but no page-level
    banner; the variants reuse the success/warning/error background and text
@@ -472,15 +471,20 @@ small { font-size: var(--text-sm); }
 .error-code { color: var(--color-error); font-size: var(--text-sm); font-weight: 600; }
 
 /* ---------------------------------------------------------------------------
-   Employee directory (T28)
+   List filters (Employees)
 
    The export's .filter-panel filters live as you type and has no submit row, so
-   the Search/Reset row is a full-width addition below the three fields: it keeps
-   the export's own three-column panel and its responsive collapse untouched.
+   the Search/Reset row is a full-width addition. Search spans the first row and
+   the department select and the inactive checkbox share the second, so every
+   control lines up on a column edge instead of leaving the submit row hanging
+   under the first field only.
    The export ships no checkbox, so .checkbox-field reuses .field label
    typography and themes the native control with the brand accent.
    --------------------------------------------------------------------------- */
 
+.filter-panel.employee-filter { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: start; }
+.filter-search { grid-column: 1 / -1; }
+.field-label { color: var(--color-text); font-size: var(--text-sm); font-weight: 600; }
 .filter-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-1); grid-column: 1 / -1; }
 .checkbox-field { display: flex; align-items: center; gap: var(--space-1); min-height: var(--control-height); }
 .checkbox-field input[type="checkbox"] { flex: none; width: 1.125rem; height: 1.125rem; min-height: 0; padding: 0; border: 0; accent-color: var(--color-primary); }
@@ -493,6 +497,7 @@ small { font-size: var(--text-sm); }
 .button.text.danger-text, .button.secondary.danger-text { color: var(--color-error); }
 
 @media (max-width: 767px) {
+  .filter-panel.employee-filter { grid-template-columns: 1fr; }
   .filter-actions .button { flex: 1 1 auto; }
   .record-actions > form { flex: 1 1 auto; }
   .record-actions > form > .button { width: 100%; }
@@ -502,13 +507,39 @@ small { font-size: var(--text-sm); }
    Employee forms (T29)
 
    The create and edit screens reuse .form-grid, .field, .panel and .button as
-   the export ships them. Two rules are additions: the submit row, which the
-   export only draws inside a .dialog-actions footer, and the full-width field
-   that carries the link to the salary page.
+   the export ships them. The submit row, which the export only draws inside a
+   .dialog-actions footer, and the full-width field that carries the link to the
+   salary page are additions.
    --------------------------------------------------------------------------- */
 
 .form-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-1); }
 .field.full { grid-column: 1 / -1; }
+
+/* The export's .form-grid is a plain two-column grid, which assumes the fields in
+   a row are interchangeable. They are not: only some carry a .field-help or a
+   .field-error, and a grid row stretches every field to the tallest one and then
+   spreads the surplus across that field's own label/control/message rows. The
+   result is a label at 30px next to one at 22px and a 55px input next to a 47px
+   one, so a row reads as two fields of different sizes.
+   Rows therefore align at the top and each field sizes to its own content, and
+   the empty validation message (which MVC always renders, and which expands to
+   the line height once it holds text) takes no space until it has something to
+   say. The controls are pinned to the export's --control-height so a select, a
+   native date input and an .input-prefix input share one height; the inner input
+   of a prefix/suffix is left auto-sized so the adornment keeps its own border. */
+.form-grid { align-items: start; }
+.form-grid > .field > .field-error:empty { display: none; }
+.form-grid .field input:not([type="hidden"]):not([type="checkbox"]),
+.form-grid .field select { height: var(--control-height); min-height: var(--control-height); line-height: 1.375rem; }
+.form-grid .input-prefix, .form-grid .input-suffix { height: var(--control-height); min-height: var(--control-height); }
+.form-grid .input-prefix input, .form-grid .input-suffix input { height: 100%; min-height: 0; }
+
+/* Edit's salary is read-only and the only way to change it is a link to the salary
+   page. Both sit in one grid row, so the link drops to the control line of the row
+   (a label is one line plus the .field gap) instead of hanging under a full-width
+   button at the end of the form. */
+.form-grid > .field-action { align-content: start; }
+.form-grid > .field-action .button { margin-top: calc(1.375rem + 0.375rem); }
 
 /* jQuery unobtrusive validation marks a failed control with
    .input-validation-error, while the design system keys the error border off
@@ -522,8 +553,11 @@ small { font-size: var(--text-sm); }
 /* The export pairs .error-summary with a <strong> heading over a list of field
    links. The MVC ModelOnly summary renders only a <ul>, so a one-line rule
    message would sit behind a stray bullet. The box, colour, role and padding
-   stay the design system's; only the list marker and indent are dropped. */
+   stay the design system's; only the list marker and indent are dropped, and
+   only for the heading-less summary - a summary the view builds itself keeps
+   the export's marked list. */
 .error-summary ul { padding-left: 0; list-style: none; }
+.error-summary strong + ul { padding-left: var(--space-3); list-style: disc; }
 .error-summary li + li { margin-top: var(--space-1); }
 
 @media (max-width: 767px) {
@@ -573,25 +607,4 @@ small { font-size: var(--text-sm); }
 @media (hover: hover) {
   .module-card:hover { border-color: #a5a3cf; box-shadow: 0 8px 24px rgb(23 32 51 / 8%); }
   .alert .icon-button:hover { color: inherit; background: rgb(23 32 51 / 8%); }
-}
-
-@media (max-width: 1023px) {
-  .site-header-inner { padding-inline: var(--space-3); }
-  .site-footer { padding-inline: var(--space-3); }
-}
-
-@media (max-width: 767px) {
-  .site-header-inner { gap: var(--space-1) var(--space-2); padding: var(--space-1) var(--space-2); }
-  .site-brand .brand-caption { display: none; }
-  .site-footer { padding-inline: var(--space-2); padding-bottom: var(--space-2); }
-}
-
-@media (max-width: 639px) {
-  .site-nav { flex: 1 1 100%; margin-left: 0; }
-  .site-nav .nav-item { flex: 1 1 auto; justify-content: center; }
-}
-
-@media (max-width: 479px) {
-  .site-nav .nav-item { gap: 0; padding-inline: 0.375rem; font-size: var(--text-sm); }
-  .site-nav .nav-item .od-icon { display: none; }
 }

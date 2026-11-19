@@ -105,8 +105,10 @@
                     </div>
 
                     @* A3: position and salary are not editable on this form, so the only way to
-                       change them is the dedicated page. The link opens the record's id. *@
-                    <div class="field od-field full">
+                       change them is the dedicated page. The link opens the record's id. It
+                       shares a row with the salary so the grid does not end on a lone field
+                       above a full-width button. *@
+                    <div class="field od-field field-action">
                         <a class="button secondary" asp-action="AdjustSalary" asp-route-id="@Model.Id">
                             <span>Adjust salary and position</span>
                         </a>

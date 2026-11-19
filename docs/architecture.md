@@ -326,26 +326,34 @@ Porting rules for the MVC screens:
 | Asset | What it holds |
 | ----- | ------------- |
 | `wwwroot/css/site.css` | The export's `OD-LAYOUT-PRIMITIVES` block, then `design-system/styles.css` verbatim (`:root` tokens, type scale, buttons, panels, tables, pagination, states), then one labelled section for the app shell. Change the export first and re-port; do not restyle the copied rules inline. |
-| `Views/Shared/_Layout.cshtml` | Skip link, icon sprite, sticky top navigation, `<main>` and footer. The export's sidebar plus topbar are composed into one header because the screens use top navigation; the brand, `.nav-item` and active-state tokens are unchanged, and the active route is derived from `RouteData`. The sprite carries every glyph the screens use, including `#i-clock` for the Planning badge, copied from the export's own sprite. |
+| `Views/Shared/_Layout.cshtml` | Skip link, icon sprite, the design system's `app-shell`: a persistent `.sidebar` (brand, `.side-nav` nav items, `.sidebar-note`), the mobile `.nav-scrim`, and the `.workspace` column with its `.topbar`. The active route is derived from `RouteData` and rendered as `.is-active` plus `aria-current="page"`; the side-nav marks the whole controller, so `Employees` stays current on `/Employees/Create`. Nav is Dashboard, Employees, Projects - the topbar names the current page from `ViewData["Title"]`. The sprite carries every glyph the screens use, including `#i-menu` for the drawer control and `#i-clock` for the Planning badge, both copied from the export's own sprite. |
 | `Views/Shared/_Alerts.cshtml` | `TempData["Success"]`, `["Warning"]` and `["Error"]` as inline alerts with `role="status"`/`role="alert"` and a dismiss control. Rendered by the layout above `RenderBody()`. |
 | `Views/Shared/_Pager.cshtml` | The design-system `.pagination` markup, built from `(Page, TotalPages, RouteValues)`. Links keep the current query string and override only `page`. |
 | `Views/Home/Index.cshtml` | Page header plus one card per module. |
-| `Views/Employees/Index.cshtml` | The employee directory: GET filter panel (search, department, include-inactive, Search/Reset), `.data-table` above 1024px, record cards below, pager in the panel footer. The Search/Reset row and `.checkbox-field` are the only additions, and they extend `.filter-panel` and `.field` from the export's tokens. |
+| `Views/Employees/Index.cshtml` | The employee directory: GET filter panel (search, department, include-inactive, Search/Reset), `.data-table` from 1280px, record cards below, pager in the panel footer. The panel puts search on its own row and the department select beside the inactive checkbox; the Search/Reset row and `.checkbox-field` are the additions, and they extend `.filter-panel` and `.field` from the export's tokens. |
 | `Views/Employees/Create.cshtml` | The create form: `.panel` + `.form-grid` + `.field`, the three `asp-items` selects with a `-- Select --` / `-- No manager --` placeholder, ModelOnly summary, per-field `asp-validation-for`, and `_ValidationScriptsPartial`. |
-| `Views/Employees/Edit.cshtml` | The edit form: only the `UpdateEmployeeRequest` fields are controls; the number, position and salary are read-only text and the salary page is linked from the grid. Same validation wiring as Create. |
+| `Views/Employees/Edit.cshtml` | The edit form: only the `UpdateEmployeeRequest` fields are controls; the number, position and salary are read-only text and the salary page is linked from the grid as a `.field-action` sharing the salary's row. Same validation wiring as Create. |
 | `Views/Employees/Delete.cshtml` | The deactivation confirmation page, rendered from `EmployeeDto`: `Sensitive action` eyebrow, Active badge, a `.record-details` card of number/department/position/manager, and a POST form with `Keep active` / `Deactivate employee`. The export draws this as a `<dialog>`; T30 asks for a page, so the dialog's copy moved to `.panel`. |
 | `Views/Employees/AdjustSalary.cshtml` | The salary and promotion page: current position and salary as read-only `.record-details`, then a position select preselected to the current one, the new monthly salary in an `.input-prefix`, and a required reason `textarea`. `.field textarea`, `.form-divider` and the page-level `.error-summary` margin are the T30 additions. |
-| `Views/Projects/Index.cshtml` | The project portfolio: `.data-table` with code, project, department, start, end, status badge, active team and a Details link; record cards below 1024px. Dates are invariant-culture formatted and a null end date is an em dash with an `sr-only` label. |
-| `Views/Projects/Details.cshtml` | One project: information card, member table (number, name, position, role, allocation bar, assigned date, inactive marker) with record cards below 1024px, and the add-member form for Active/Planning projects only. |
+| `Views/Projects/Index.cshtml` | The project directory: `.data-table` with code, project, department, start, end, status badge, active team and a Details link; record cards below 1280px. Dates are invariant-culture formatted and a null end date is an em dash with an `sr-only` label. |
+| `Views/Projects/Details.cshtml` | One project: information card, member table (number, name, position, role, allocation bar, assigned date, inactive marker) with record cards below 1280px, and the add-member form for Active/Planning projects only. The form's employee select is `.field.full` because the three fields do not pair evenly. |
 | `Models/ProjectDetailsViewModel.cs` | `ProjectDetailDto Project`, `IEnumerable<SelectListItem> Employees`, `AssignEmployeeRequest NewAssignment`. Only the request is posted; the rest is rebuilt from the database on every render. |
-| `Views/Dashboard/Index.cshtml` | The budget dashboard, typed directly to `IReadOnlyList<DepartmentSummaryDto>`: `.stats-grid` totals on top, then a `.data-table` of Code, Department, Active employees, Monthly payroll, Budget, Remaining and Active projects plus a budget-status badge; record cards below 1024px. Over-budget rows use `.over-budget` with `.negative`/`.badge.over` (`#i-alert`), so the state is carried by colour, an icon and the words. OPS appears with zeros because the procedure left joins from `Departments`. |
+| `Views/Dashboard/Index.cshtml` | The budget dashboard, typed directly to `IReadOnlyList<DepartmentSummaryDto>`: `.stats-grid` totals on top, then a `.data-table` of Code, Department, Active employees, Monthly payroll, Budget, Remaining and Active projects plus a budget-status badge; record cards below 1280px. Over-budget rows use `.over-budget` with `.negative`/`.badge.over` (`#i-alert`), so the state is carried by colour, an icon and the words. OPS appears with zeros because the procedure left joins from `Departments`. |
 | `Views/Shared/Error.cshtml` | The design-system error state for `HomeController.Error`, reached by `UseExceptionHandler` and by status-code re-execution; the action puts the original status back on the response. |
 
 Bootstrap is not referenced by the layout. `wwwroot/lib/bootstrap` and the template
-`Views/Shared/_Layout.cshtml.css` still exist on disk but nothing links them. Every nav item now
-resolves to a real screen - Home, Employees, Projects and Dashboard - so no link in the app answers
-the branded 404. New screens start from `.page`, `.page-header`, `.panel`, `.data-table`, `.field`
+`Views/Shared/_Layout.cshtml.css` still exist on disk but nothing links them. Every nav item
+resolves to a real screen - Dashboard, Employees, Projects - so no link in the app answers the
+branded 404. New screens start from `.page`, `.page-header`, `.panel`, `.data-table`, `.field`
 and the `.button` variants instead of new CSS.
+
+The conventional route defaults to `{controller=Dashboard}/{action=Index}`, so `/` is the budget
+dashboard and `/Dashboard` is the same action; there is no second view. Outbound Tag Helpers
+suppress values equal to the route defaults, so the Dashboard nav item renders `href="/"`. Because
+the sidebar takes a 15.5rem column, `site.css` moves the `.desktop-table` → `.mobile-records` swap
+from 1024px up to 1279px: the export's own breakpoint table puts full tables at 1280px and up, and
+an eight-column table in the 761px the sidebar leaves at 1024px would push the document sideways.
+The app has no footer - it is an internal tool and the shell ends at `<main>`.
 
 The dashboard needed no ported CSS at all: `.stats-grid`, `.stat-card.featured`, `.data-table
 .over-budget`, `.record-card.over-budget`, `.badge.over`/`.within` and `.negative`/`.positive` are

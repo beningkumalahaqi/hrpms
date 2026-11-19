@@ -37,9 +37,11 @@ the log of what each stage added. The authoritative "what is done" summary is th
 | T28 | Employees index: search, department filter, include-inactive, paging | done |
 | T29 | Employees create and edit forms with dynamic department/position/manager selects | done |
 | T30 | Employee deactivation confirmation and salary/promotion adjustment with audit history | done |
-| T31 | Projects index: portfolio table with dates, status badges and active team size | done |
+| T31 | Projects index: directory table with dates, status badges and active team size | done |
 | T32 | Project details: information card, member table with allocation bars and inactive markers, add-member form with workload feedback | done |
 | T33 | Budget dashboard: department summary with over-budget rows, status badges and totals | done |
+| T33.5 | Sidebar navigation, dashboard at `/`, and a reorganised employee filter panel | done |
+| T33.6 | Form grid alignment on Create/Edit/add-member, and "project directory" naming | done |
 | T34+ | Final review and deployment | pending |
 
 ## T01–T04 — Infrastructure and database
@@ -645,7 +647,7 @@ the same table still show only Edit and Salary. Both screens were checked in Chr
 1440 with no horizontal overflow, and `requests.http` still passes 63/63 with the seed restored
 to `4|10|9|6|7|0`.
 
-## T31 — Project portfolio
+## T31 — Project directory
 
 `GET /Projects` adds the project list. `ProjectsController` takes `IProjectService` and passes the
 result of `GetAllAsync` straight to the view as `IReadOnlyList<ProjectListItemDto>`; the list is
@@ -772,10 +774,95 @@ database fingerprint unchanged at `4|10|9|6|7|0`, the page renders no `<form>` a
 token, `requests.http` still passes 63/63, and 360/768/1024/1440 report `scrollWidth <= innerWidth`
 with the table/card swap at 1024px.
 
+## T33.5 — Sidebar, dashboard at `/`, filter panel
+
+Three shell and list-layout changes, no functionality moved.
+
+**The top navigation became the export's own sidebar.** `_Layout.cshtml` now renders the
+`app-shell` / `sidebar` / `nav-scrim` / `workspace` / `topbar` composition that
+`design-system/index.html` uses, with the three module items in `.side-nav`. Those rules were
+already ported into `site.css` at T27 and unused until now, so the switch added no new CSS: the
+old `.site-header*` / `.site-brand` / `.site-nav*` block and its three media queries were deleted
+instead. The mobile drawer is the export's `setMobileNavigation`, moved from a `<script>` block
+into `wwwroot/js/site.js` along with the existing alert-dismiss handler: the Menu control toggles
+`body.nav-open` and `aria-expanded`, the scrim and Escape close it, focus moves into the drawer on
+open and back to Menu on close, and the closed drawer is `inert` so its links leave the tab order.
+The active item is still derived from `RouteData` (`IsCurrent(controller, action = null)`), so
+Employees and Projects stay current on their sub-screens. The topbar names the current page from
+`ViewData["Title"]`, which is also why the nav no longer has a Home item - the four-link bar could
+afford one, the sidebar does not need it now that `/` is the dashboard.
+
+**Dashboard is the landing page.** The conventional route default became
+`{controller=Dashboard}/{action=Index}/{id?}`. That is one action and one view reached by two
+URLs; no view, controller or redirect was copied. `Tag Helpers` suppress route values equal to
+the defaults, so the Dashboard nav item renders `href="/"`, and `Error.cshtml`'s link now reads
+"Back to dashboard". `HomeController` stays for `Error` and the unlinked `Index`/`Privacy` pages.
+
+**The employee filter panel was reorganised.** The old grid was `2fr 1fr 1fr` with the checkbox
+in the third column and a submit row that left a wide empty gap; search, department and
+include-inactive now sit on a two-column grid with search spanning the first row and the actions
+right-aligned under both, using the export's own `.field`, `.field-help` and `.filter-actions`
+vocabulary. The inactive checkbox gained the "Employment status" label the other fields have. No
+filter, query parameter or paging behaviour changed: `filter-panel.employee-filter` only overrides
+the grid template, and `.projects-filter` was left alone because the directory has no filters.
+
+**One consequence worth recording.** The sidebar takes a 15.5rem column, so at 1024px the main
+column is 761px and the directory's eight-column table (intrinsic width 915px) pushed the whole
+document sideways by 172px. Rather than make the table scroll, the `.desktop-table` →
+`.mobile-records` swap moved from 1024px to 1279px, which is what the export's own breakpoint
+table prescribes ("1280px and up: full tables"). Both list panels and the dashboard already
+rendered record cards for the mobile case, so this reuses them.
+
+Verified in Chromium: `/` and `/Dashboard` return byte-identical bodies, the active sidebar item
+follows the route on all seven screens, the drawer opens/closes via Menu, scrim, Escape and a nav
+link, `inert` keeps the closed drawer out of the tab order, and there is no horizontal overflow at
+360, 390, 480, 767, 768, 1024, 1279, 1280, 1440 or 1920. Employee search, department filter,
+include-inactive, all three combined and the page clamp still behave as at T28, the project
+directory is unchanged, `requests.http` passes 63/63, and the seed snapshot stays
+`4|10|9|6|7|0` across repeated GETs.
+
+## T33.6 - Form grid alignment and the project directory rename
+
+Two follow-ups on the screens the sidebar reflowed.
+
+**The form grids were uneven.** `.form-grid` is the export's plain
+`repeat(2, minmax(0, 1fr))`, which assumes the fields in a row are interchangeable. They are
+not: only some carry a `.field-help`, and `asp-validation-for` renders an empty
+`.field-error` span in every field. A grid row stretches each field to the tallest one and then
+distributes the surplus across that field's own label/control/message rows, so a field next to
+one with help text measured a 30px label against 22px and a 55px input against 47px. The
+screens were aligned but visually ragged, which is what the review reported.
+
+`site.css` now sets `.form-grid { align-items: start; }` so fields size to their own content,
+hides the empty `.field-error` until it has a message, and pins every control in a form to the
+export's `--control-height`. Before the pin, a `<select>` rendered 52px, a text input 47px and a
+native date input 49px in the same row. The inner `<input>` of `.input-prefix`/`.input-suffix`
+keeps `height: 100%` so the adornment's own border stays the visible edge. Every control on
+Create, Edit, Adjust salary and the add-member form now measures 44px with a 22px label, and rows
+pair exactly; a rejected post expands each `.field-error` to its 22px line without moving the
+label or the control beside it.
+
+Two lone trailing fields were re-paired rather than left hanging: Edit's "Adjust salary and
+position" link moved from a `.field.full` under the salary to a `.field-action` beside it, and
+the add-member form's employee select became `.field.full` so Project role and Allocation pair
+under it. The error summary in the add-member form also regained the export's marked list - the
+bullet-suppressing rule only ever existed for the heading-less MVC `ModelOnly` summary, and it
+was flattening the list the view builds with its own `<strong>` heading.
+
+**"Project portfolio" became "Project directory"** in the Projects `<h1>`, the table caption and
+empty state, the page title, the controller summary, and the docs. Nothing else changed: the
+`/Projects` route, the panel heading "Projects" and the data are untouched.
+
+Verified in Chromium at 360, 768, 1024, 1440 and 1920: no row has controls of unequal height or
+top edge, no document is wider than its viewport, and a rejected assignment (employee, role and
+allocation all invalid) writes nothing - `4|10|9|6|7|0` before and after - while a valid one
+still creates the assignment and reports the success alert. `requests.http` passes 63/63 and the
+seed returns to `4|10|9|6|7|0`.
+
 ## Next
 
 The module set is complete: every nav item renders a real screen. T34 is the final review -
 scope check across the four projects, the production build, the design-system extensions recorded
 in `flag-for-t34.md`, and the deployment pass (Docker SQL setup, build, run) that was intentionally
 left for last. Each new endpoint still gets a group in `requests.http` and a section in
-`docs/TEST-SCENARIO-API.md`.
+`docs/TEST-SCENARIO-API.md`; the Projects screen still has no filters of its own.

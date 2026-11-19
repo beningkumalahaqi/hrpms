@@ -141,11 +141,16 @@ app.UseRouting();
 app.UseAuthorization();
 
 // Attribute routing wins over the conventional route, so /api/** reaches the API controllers
-// and every other path falls through to {controller=Home}/{action=Index}/{id?}.
+// and every other path falls through to {controller=Dashboard}/{action=Index}/{id?}.
+//
+// Dashboard is the default controller/action pair, so "/" is the budget dashboard and
+// "/Dashboard" resolves to the same action: one action, one view, two URLs. Outbound link
+// generation suppresses values that equal the defaults, so a Tag Helper pointing at
+// Dashboard/Index renders href="/" rather than "/Dashboard".
 app.MapControllers();
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+    pattern: "{controller=Dashboard}/{action=Index}/{id?}");
 
 app.Run();
 

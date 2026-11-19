@@ -10,7 +10,7 @@
     // exists so the screen does not invite a submission that cannot succeed.
     var canAssign = project.Status is "Active" or "Planning";
 
-    // Same pinned format as the portfolio: the screens are English throughout, so a host in
+    // Same pinned format as the directory: the screens are English throughout, so a host in
     // another locale must not mix month names into this table.
     string Date(DateTime value) =>
         value.ToString("MMM d, yyyy", CultureInfo.InvariantCulture);
@@ -301,7 +301,10 @@
                     }
 
                     <div class="form-grid">
-                        <div class="field od-field">
+                        @* The employee select spans the row: the three fields do not pair evenly,
+                           and a lone allocation field under the employee would leave the right
+                           half of the last row empty. *@
+                        <div class="field od-field full">
                             <label asp-for="NewAssignment.EmployeeId">Employee <span aria-hidden="true">*</span></label>
                             <select asp-for="NewAssignment.EmployeeId" asp-items="Model.Employees" id="assignEmployee"
                                     data-val-required="@employeeRequired"

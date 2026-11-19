@@ -57,7 +57,7 @@ origin:
 
 | What | URL |
 | ---- | --- |
-| MVC screens | <http://localhost:5100> (home), `/Employees`, `/Projects`, `/Dashboard` |
+| MVC screens | <http://localhost:5100> (dashboard at `/`), `/Employees`, `/Projects`, and `/Dashboard` for the same dashboard |
 | REST API | <http://localhost:5100/api/**> (e.g. `/api/employees`, `/api/projects`, `/api/reports/department-summary`) |
 | Swagger UI | <http://localhost:5100/swagger> |
 
@@ -90,19 +90,23 @@ steps, and the Apple Silicon caveats — is in
 | T28 | Employees index: search, department filter, include-inactive, paging | done |
 | T29 | Employees create and edit forms with dynamic department, position and manager selects | done |
 | T30 | Employee deactivation confirmation and salary/promotion adjustment with audit history | done |
-| T31 | Projects index: portfolio table with dates, status badges and active team size | done |
+| T31 | Projects index: directory table with dates, status badges and active team size | done |
 | T32 | Project details: information card, member table with allocation bars and inactive markers, add-member form with workload feedback | done |
 | T33 | Budget dashboard: department summary with over-budget rows, status badges and totals | done |
+| T33.5 | Sidebar navigation, dashboard at `/`, and a reorganised employee filter panel | done |
+| T33.6 | Form grid alignment on Create/Edit/add-member, and "project directory" naming | done |
 | T34+ | Final review and deployment | pending |
 
 The database, domain layer, data-access foundation, services and the API infrastructure
 (envelope, validation mapping, exception mapping, Swagger) are complete, and MVC plus the API
 serve from one process. The employee, project and report endpoints are live, and the MVC shell
-uses the HR Workspace design system with top navigation, shared alerts, a pager and a home page.
+uses the HR Workspace design system: its persistent sidebar with a mobile drawer, shared alerts
+and a pager. The dashboard is the landing page at `/`, so opening the app shows department
+budgets immediately.
 The employee directory is the first real screen: it searches by name or number, filters by
 department, includes former staff on request and pages the results. Employees can be created,
 edited, deactivated through a confirmation card, and given a raise or promotion that writes a
-salary-history row. The project portfolio follows the same pattern: every project with its
+salary-history row. The project directory follows the same pattern: every project with its
 department, dates, status badge and active team size, plus a link into its details. Each project's
 detail page lists its team with per-member allocation bars, keeps former members marked inactive,
 and offers an add-member form whose workload cap is enforced by the repository and reported back on
@@ -126,7 +130,7 @@ migration tool, test projects, CI pipelines, and containerization of the .NET ap
 | [docs/architecture.md](docs/architecture.md) | Projects, layer responsibilities, data-access rules, design-system contract, scope. |
 | [docs/database.md](docs/database.md) | Schema, constraints, stored procedure, seed fixtures. |
 | [docs/TEST-SCENARIO-API.md](docs/TEST-SCENARIO-API.md) | API scenario matrix, paired with the runnable `src/EnterpriseHR.Api/requests.http`. |
-| [docs/development-stages.md](docs/development-stages.md) | T01–T33 stage log and what comes next. |
+| [docs/development-stages.md](docs/development-stages.md) | T01–T33.6 stage log and what comes next. |
 | [db/README.md](db/README.md) | Rules for the numbered SQL init scripts. |
 | [AGENTS.md](AGENTS.md) | Working rules for coding agents, including where each kind of knowledge belongs. |
 

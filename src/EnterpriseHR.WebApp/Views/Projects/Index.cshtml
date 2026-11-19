@@ -32,15 +32,15 @@
     <header class="page-header">
         <div class="page-heading">
             <span class="eyebrow">Projects</span>
-            <h1>Project portfolio</h1>
+            <h1>Project directory</h1>
             <p class="page-description">Track project ownership, delivery dates, status, and active team allocations.</p>
         </div>
     </header>
 
-    <section class="panel" aria-labelledby="projectPortfolioTitle">
+    <section class="panel" aria-labelledby="projectDirectoryTitle">
         <div class="panel-header">
             <div class="panel-heading">
-                <h2 id="projectPortfolioTitle">Projects</h2>
+                <h2 id="projectDirectoryTitle">Projects</h2>
                 <p>Active team counts include current employees only, ordered by start date.</p>
             </div>
             <span class="data-chip">@Model.Count @(Model.Count == 1 ? "project" : "projects")</span>
@@ -50,14 +50,14 @@
         {
             <div class="empty-state">
                 <h2>No projects yet</h2>
-                <p>The portfolio is empty. Projects appear here once they are scheduled.</p>
+                <p>The directory is empty. Projects appear here once they are scheduled.</p>
             </div>
         }
         else
         {
             <div class="desktop-table table-wrap">
                 <table class="data-table">
-                    <caption class="sr-only">Project portfolio</caption>
+                    <caption class="sr-only">Project directory</caption>
                     <thead>
                         <tr>
                             <th scope="col">Code</th>

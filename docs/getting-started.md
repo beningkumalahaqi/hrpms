@@ -117,7 +117,7 @@ REST API under `/api/**` and Swagger, all on one origin. The development URL com
 
 | What | URL |
 | ---- | --- |
-| MVC screens | <http://localhost:5100> (home), `/Employees`, `/Projects`, `/Dashboard` |
+| MVC screens | <http://localhost:5100> (dashboard at `/`), `/Employees`, `/Projects`, and `/Dashboard` for the same dashboard |
 | REST API | <http://localhost:5100/api/**> |
 | Swagger UI | <http://localhost:5100/swagger> |
 

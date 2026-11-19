@@ -40,8 +40,10 @@
         </div>
     </header>
 
-    <form class="filter-panel" method="get" asp-action="Index" role="search" aria-label="Employee filters">
-        <div class="field od-field">
+    <form class="filter-panel employee-filter" method="get" asp-action="Index" role="search" aria-label="Employee filters">
+        @* Search gets the full row: it is the control people reach for first, and the
+           export's own .filter-panel leaves the remaining columns for the selects. *@
+        <div class="field od-field filter-search">
             <label for="search">Search employees</label>
             <div class="input-prefix search-control">
                 <svg class="od-icon od-icon-control" aria-hidden="true" focusable="false"><use href="#i-search" /></svg>
@@ -56,12 +58,14 @@
             <select id="departmentId" name="departmentId" asp-items="Model.Departments">
                 <option value="">All departments</option>
             </select>
+            <small class="field-help">Limits the directory to one department.</small>
         </div>
 
         <div class="field od-field">
             @* One label only: it names the checkbox, and the field-help explains what selecting
                it adds. A separate "Employment status" label would make the control announce
                both strings and toggle from two places. *@
+            <span class="field-label">Employment status</span>
             <div class="checkbox-field">
                 @* Razor drops an attribute whose value is null, so this renders checked only
                    when the list already includes former staff. *@
