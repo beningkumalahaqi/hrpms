@@ -1,0 +1,193 @@
+﻿@model IReadOnlyList<DepartmentSummaryDto>
+@using System.Globalization
+@using EnterpriseHR.Domain.Dtos
+@{
+    ViewData["Title"] = "Dashboard";
+
+    // Same formatter as the employee directory: monthly IDR, no decimals. Kept on the current
+    // culture rather than pinned so the dashboard, the salary form and the directory agree.
+    string Money(decimal value) => value.ToString("N0", CultureInfo.CurrentCulture);
+
+    // Totals are summed here from the four rows the procedure already returned. That is
+    // presentation arithmetic on data in hand, not another query, so the screen stays one
+    // round trip.
+    var totalBudget = Model.Sum(department => department.Budget);
+    var totalPayroll = Model.Sum(department => department.TotalMonthlySalary);
+    var overBudgetCount = Model.Count(department => department.IsOverBudget);
+    var activeProjectCount = Model.Sum(department => department.ActiveProjectCount);
+}
+<div class="page">
+    <header class="page-header">
+        <div class="page-heading">
+            <span class="eyebrow">Dashboard</span>
+            <h1>Budget dashboard</h1>
+            <p class="page-description">Compare each department's monthly salary expense with its approved budget, and see which teams are over.</p>
+        </div>
+    </header>
+
+    @* The export's four statistic cards, with the financial total on the featured surface.
+       Two of its icons (salary, departments) are not in this project's sprite, so the cards use
+       the closest existing symbol instead of introducing a new one. *@
+    <section class="stats-grid" aria-label="Budget totals">
+        <article class="stat-card od-stat">
+            <div class="stat-label-row">
+                <span class="stat-label">Total monthly budget</span>
+                <svg class="od-icon od-icon-control" aria-hidden="true" focusable="false"><use href="#i-dashboard" /></svg>
+            </div>
+            <strong class="stat-value">@Money(totalBudget)</strong>
+            <span class="stat-meta">Across @Model.Count @(Model.Count == 1 ? "department" : "departments"), IDR</span>
+        </article>
+        <article class="stat-card od-stat">
+            <div class="stat-label-row">
+                <span class="stat-label">Departments over budget</span>
+                <svg class="od-icon od-icon-control" aria-hidden="true" focusable="false"><use href="#i-alert" /></svg>
+            </div>
+            <strong class="stat-value">@overBudgetCount</strong>
+            <span class="stat-meta">@(overBudgetCount == 1 ? "Requires attention" : "Require attention")</span>
+        </article>
+        <article class="stat-card od-stat">
+            <div class="stat-label-row">
+                <span class="stat-label">Active projects</span>
+                <svg class="od-icon od-icon-control" aria-hidden="true" focusable="false"><use href="#i-briefcase" /></svg>
+            </div>
+            <strong class="stat-value">@activeProjectCount</strong>
+            <span class="stat-meta">Assigned to a department budget</span>
+        </article>
+        <article class="stat-card od-stat featured">
+            <div class="stat-label-row">
+                <span class="stat-label">Total monthly payroll</span>
+                <svg class="od-icon od-icon-control" aria-hidden="true" focusable="false"><use href="#i-users" /></svg>
+            </div>
+            <strong class="stat-value">@Money(totalPayroll)</strong>
+            <span class="stat-meta">Active employees only, IDR</span>
+        </article>
+    </section>
+
+    <section class="panel" aria-labelledby="budgetSummaryTitle">
+        <div class="panel-header">
+            <div class="panel-heading">
+                <h2 id="budgetSummaryTitle">Department budget summary</h2>
+                <p>Rows with payroll above the approved budget use the error surface and carry an Over budget badge.</p>
+            </div>
+            <span class="data-chip">@Model.Count @(Model.Count == 1 ? "department" : "departments")</span>
+        </div>
+
+        @if (Model.Count == 0)
+        {
+            <div class="empty-state">
+                <h2>No departments configured</h2>
+                <p>Budget summaries appear once departments exist.</p>
+            </div>
+        }
+        else
+        {
+            <div class="desktop-table table-wrap">
+                <table class="data-table">
+                    <caption class="sr-only">Department monthly salary budgets, payroll and budget status</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Code</th>
+                            <th scope="col">Department</th>
+                            <th scope="col" class="numeric">Active employees</th>
+                            <th scope="col" class="numeric">Monthly payroll</th>
+                            <th scope="col" class="numeric">Budget</th>
+                            <th scope="col" class="numeric">Remaining</th>
+                            <th scope="col" class="numeric">Active projects</th>
+                            <th scope="col">Budget status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var department in Model)
+                        {
+                            <tr class="@(department.IsOverBudget ? "over-budget" : null)">
+                                <td><span class="mono">@department.DepartmentCode</span></td>
+                                <td><span class="cell-primary">@department.DepartmentName</span></td>
+                                <td class="numeric">@department.ActiveEmployeeCount</td>
+                                <td class="numeric">@Money(department.TotalMonthlySalary)</td>
+                                <td class="numeric">@Money(department.Budget)</td>
+                                <td class="numeric">
+                                    @if (department.RemainingBudget < 0)
+                                    {
+                                        @* The sign is a character, not styling: it survives forced
+                                           colours and is read out. The strong element carries the
+                                           emphasis the brief asks for; .negative carries the tone. *@
+                                        <strong class="negative">&minus;@Money(Math.Abs(department.RemainingBudget))</strong>
+                                    }
+                                    else
+                                    {
+                                        <span class="positive">@Money(department.RemainingBudget)</span>
+                                    }
+                                </td>
+                                <td class="numeric">@department.ActiveProjectCount</td>
+                                <td>
+                                    @if (department.IsOverBudget)
+                                    {
+                                        <span class="badge over">
+                                            <svg class="od-icon od-icon-status" aria-hidden="true" focusable="false"><use href="#i-alert" /></svg>
+                                            <span>Over budget</span>
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge within">
+                                            <svg class="od-icon od-icon-status" aria-hidden="true" focusable="false"><use href="#i-check-circle" /></svg>
+                                            <span>Within budget</span>
+                                        </span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @* Below 1024px the export swaps the table for one record card per department. *@
+            <div class="mobile-records">
+                @foreach (var department in Model)
+                {
+                    <article class="record-card @(department.IsOverBudget ? "over-budget" : null)">
+                        <div class="record-header">
+                            <div class="record-title">
+                                <strong>@department.DepartmentName</strong>
+                                <span class="mono">@department.DepartmentCode</span>
+                            </div>
+                            @if (department.IsOverBudget)
+                            {
+                                <span class="badge over">
+                                    <svg class="od-icon od-icon-status" aria-hidden="true" focusable="false"><use href="#i-alert" /></svg>
+                                    <span>Over budget</span>
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge within">
+                                    <svg class="od-icon od-icon-status" aria-hidden="true" focusable="false"><use href="#i-check-circle" /></svg>
+                                    <span>Within budget</span>
+                                </span>
+                            }
+                        </div>
+                        <dl class="record-details">
+                            <div><dt>Active employees</dt><dd class="numeric">@department.ActiveEmployeeCount</dd></div>
+                            <div><dt>Monthly payroll</dt><dd class="numeric">@Money(department.TotalMonthlySalary)</dd></div>
+                            <div><dt>Monthly budget</dt><dd class="numeric">@Money(department.Budget)</dd></div>
+                            <div>
+                                <dt>Remaining</dt>
+                                <dd class="numeric">
+                                    @if (department.RemainingBudget < 0)
+                                    {
+                                        <strong class="negative">&minus;@Money(Math.Abs(department.RemainingBudget))</strong>
+                                    }
+                                    else
+                                    {
+                                        <span class="positive">@Money(department.RemainingBudget)</span>
+                                    }
+                                </dd>
+                            </div>
+                            <div><dt>Active projects</dt><dd class="numeric">@department.ActiveProjectCount</dd></div>
+                        </dl>
+                    </article>
+                }
+            </div>
+        }
+    </section>
+</div>

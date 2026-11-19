@@ -111,13 +111,13 @@ pipeline.
 
 ## 5. Run the application
 
-There is one runnable project, `src/EnterpriseHR.WebApp`. It serves the MVC dashboard, the
+There is one runnable project, `src/EnterpriseHR.WebApp`. It serves the MVC screens, the
 REST API under `/api/**` and Swagger, all on one origin. The development URL comes from
 `src/EnterpriseHR.WebApp/Properties/launchSettings.json`.
 
 | What | URL |
 | ---- | --- |
-| MVC dashboard | <http://localhost:5100> |
+| MVC screens | <http://localhost:5100> (home), `/Employees`, `/Projects`, `/Dashboard` |
 | REST API | <http://localhost:5100/api/**> |
 | Swagger UI | <http://localhost:5100/swagger> |
 

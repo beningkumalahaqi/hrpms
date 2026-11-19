@@ -57,7 +57,7 @@ origin:
 
 | What | URL |
 | ---- | --- |
-| MVC dashboard | <http://localhost:5100> |
+| MVC screens | <http://localhost:5100> (home), `/Employees`, `/Projects`, `/Dashboard` |
 | REST API | <http://localhost:5100/api/**> (e.g. `/api/employees`, `/api/projects`, `/api/reports/department-summary`) |
 | Swagger UI | <http://localhost:5100/swagger> |
 
@@ -92,7 +92,8 @@ steps, and the Apple Silicon caveats — is in
 | T30 | Employee deactivation confirmation and salary/promotion adjustment with audit history | done |
 | T31 | Projects index: portfolio table with dates, status badges and active team size | done |
 | T32 | Project details: information card, member table with allocation bars and inactive markers, add-member form with workload feedback | done |
-| T33+ | Dashboard screens | pending |
+| T33 | Budget dashboard: department summary with over-budget rows, status badges and totals | done |
+| T34+ | Final review and deployment | pending |
 
 The database, domain layer, data-access foundation, services and the API infrastructure
 (envelope, validation mapping, exception mapping, Swagger) are complete, and MVC plus the API
@@ -105,7 +106,9 @@ salary-history row. The project portfolio follows the same pattern: every projec
 department, dates, status badge and active team size, plus a link into its details. Each project's
 detail page lists its team with per-member allocation bars, keeps former members marked inactive,
 and offers an add-member form whose workload cap is enforced by the repository and reported back on
-the same screen. What is still missing: the dashboard.
+the same screen. The dashboard closes the module set: one row per department comparing monthly
+payroll with its budget, totals on top, and the departments whose payroll exceeds the budget marked
+with the error surface and a labelled badge.
 The API can be exercised end to end with
 [`src/EnterpriseHR.Api/requests.http`](src/EnterpriseHR.Api/requests.http), whose scenarios are
 tabulated in [docs/TEST-SCENARIO-API.md](docs/TEST-SCENARIO-API.md).
@@ -123,7 +126,7 @@ migration tool, test projects, CI pipelines, and containerization of the .NET ap
 | [docs/architecture.md](docs/architecture.md) | Projects, layer responsibilities, data-access rules, design-system contract, scope. |
 | [docs/database.md](docs/database.md) | Schema, constraints, stored procedure, seed fixtures. |
 | [docs/TEST-SCENARIO-API.md](docs/TEST-SCENARIO-API.md) | API scenario matrix, paired with the runnable `src/EnterpriseHR.Api/requests.http`. |
-| [docs/development-stages.md](docs/development-stages.md) | T01–T32 stage log and what comes next. |
+| [docs/development-stages.md](docs/development-stages.md) | T01–T33 stage log and what comes next. |
 | [db/README.md](db/README.md) | Rules for the numbered SQL init scripts. |
 | [AGENTS.md](AGENTS.md) | Working rules for coding agents, including where each kind of knowledge belongs. |
 

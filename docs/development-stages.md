@@ -36,7 +36,11 @@ the log of what each stage added. The authoritative "what is done" summary is th
 | T27 | WebApp shell: design-system layout, top navigation, alerts, pager, home cards | done |
 | T28 | Employees index: search, department filter, include-inactive, paging | done |
 | T29 | Employees create and edit forms with dynamic department/position/manager selects | done |
-| T30+ | Remaining employee actions and the project and dashboard screens | pending |
+| T30 | Employee deactivation confirmation and salary/promotion adjustment with audit history | done |
+| T31 | Projects index: portfolio table with dates, status badges and active team size | done |
+| T32 | Project details: information card, member table with allocation bars and inactive markers, add-member form with workload feedback | done |
+| T33 | Budget dashboard: department summary with over-budget rows, status badges and totals | done |
+| T34+ | Final review and deployment | pending |
 
 ## T01–T04 — Infrastructure and database
 
@@ -468,8 +472,9 @@ removes the banner. `_Pager.cshtml` renders the export's `.pagination` markup fr
 `(Page, TotalPages, RouteValues)`, overriding only `page` so filters survive navigation.
 
 `Program.cs` adds `UseStatusCodePagesWithReExecute("/Home/Error", "?code={0}")`, and
-`HomeController.Error` puts the original status back on the response, so `/Dashboard` answers a
-branded 404 instead of an empty body. The middleware sits outside the `/api` branch, which
+`HomeController.Error` puts the original status back on the response, so a page route that does
+not exist answers a branded 404 instead of an empty body. The middleware sits outside the `/api`
+branch, which
 keeps the JSON envelope on unknown API routes: `/api/nope` still returns the 404 envelope with
 `Content-Type: application/json`. The Home page is a page header and one card per module; no
 POST form exists yet, and `_ValidationScriptsPartial` plus its jQuery assets are still served
@@ -722,8 +727,55 @@ the expected result, every rejected path writes nothing, and a post without the 
 answers 400. 360/768/1024/1440 report `scrollWidth <= innerWidth`, the table swaps to cards below
 1024px, and `requests.http` still passes 63/63. The seed was restored to `4|10|9|6|7|0`.
 
+## T33 — Budget dashboard
+
+`GET /Dashboard` calls `IReportService.GetDepartmentSummaryAsync` and hands the
+`IReadOnlyList<DepartmentSummaryDto>` straight to the view. There is no view model: the DTO already
+carries every column the screen needs (`DepartmentCode`, `DepartmentName`, `ActiveEmployeeCount`,
+`TotalMonthlySalary`, `Budget`, `RemainingBudget`, `ActiveProjectCount`) and a computed
+`IsOverBudget`, so a wrapper would only rename fields. The action takes `CancellationToken ct` and
+the controller does nothing else - it is a read with no parameters, no write path and no rule to
+re-implement. The ordering is the stored procedure's own (department name: FIN, HR, IT, OPS); the
+screen adds no sort control it would have to fake.
+
+The table carries exactly the columns the task names, plus a budget-status column:
+Code, Department, Active employees, Monthly payroll, Budget, Remaining, Active projects. Money uses
+the same `N0` formatter as the employee directory so the dashboard, the salary form and the
+directory agree; on an en-ID host that renders `77.000.000`, which is consistent with the rest of
+the app rather than a dashboard-specific format.
+
+The over-budget state uses what the export already defines and adds nothing:
+
+- `<tr class="over-budget">` picks up `.data-table .over-budget td { background: var(--color-error-bg); }`.
+- The remaining cell wraps a negative value in `<strong class="negative">`, which is bold at weight
+  700 and `var(--color-error)`. The minus sign is a `&minus;` character rather than an en dash, so
+  it survives forced colours and is announced.
+- The status badge is `.badge.over` with `#i-alert` and the text "Over budget"; within-budget rows
+  get `.badge.within` with `#i-check-circle` and "Within budget". Colour, icon and the words all
+  say the same thing, so the state never depends on colour alone.
+- Below 1024px the record cards repeat it: `<article class="record-card over-budget">`
+  (`.record-card.over-budget` is the export's own rule) with the same badge.
+
+The four statistic cards are the export's `.stats-grid` / `.stat-card`, with the financial total on
+the `.featured` surface as the design-system specimen does. Two of the export's card icons
+(`salary`, `departments`) are not in this project's sprite, which carries only the glyphs the
+screens use; the cards reuse `#i-dashboard`, `#i-alert`, `#i-briefcase` and `#i-users` instead of
+adding new symbols. Totals are summed in the view from the rows already in hand - presentation
+arithmetic, not another query - so the screen stays one round trip.
+
+Verified against SQL Server and in Chromium: the four rows match `EXEC dbo.sp_GetDepartmentSummary`
+value for value (FIN 3/48M/50M/2M/1, HR 2/38M/60M/22M/0, IT 4/77M/70M/**-7M**/2, OPS
+**0/0**/20M/20M/0), only the IT row carries `over-budget` and computes to `rgb(253, 236, 239)`
+while the other three are transparent, IT's remaining renders at weight 700 in `rgb(163, 33, 49)`,
+and OPS appears with zeros rather than being dropped by the join. Three dashboard requests leave the
+database fingerprint unchanged at `4|10|9|6|7|0`, the page renders no `<form>` and no antiforgery
+token, `requests.http` still passes 63/63, and 360/768/1024/1440 report `scrollWidth <= innerWidth`
+with the table/card swap at 1024px.
+
 ## Next
 
-T33 adds the dashboard. Each new screen starts from the existing shell, `.page`, `.panel`,
-`.data-table`, `.field` and `.form-grid`; each new API endpoint gets a group in `requests.http` and
-a section in `docs/TEST-SCENARIO-API.md`.
+The module set is complete: every nav item renders a real screen. T34 is the final review -
+scope check across the four projects, the production build, the design-system extensions recorded
+in `flag-for-t34.md`, and the deployment pass (Docker SQL setup, build, run) that was intentionally
+left for last. Each new endpoint still gets a group in `requests.http` and a section in
+`docs/TEST-SCENARIO-API.md`.

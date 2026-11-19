@@ -338,13 +338,20 @@ Porting rules for the MVC screens:
 | `Views/Projects/Index.cshtml` | The project portfolio: `.data-table` with code, project, department, start, end, status badge, active team and a Details link; record cards below 1024px. Dates are invariant-culture formatted and a null end date is an em dash with an `sr-only` label. |
 | `Views/Projects/Details.cshtml` | One project: information card, member table (number, name, position, role, allocation bar, assigned date, inactive marker) with record cards below 1024px, and the add-member form for Active/Planning projects only. |
 | `Models/ProjectDetailsViewModel.cs` | `ProjectDetailDto Project`, `IEnumerable<SelectListItem> Employees`, `AssignEmployeeRequest NewAssignment`. Only the request is posted; the rest is rebuilt from the database on every render. |
+| `Views/Dashboard/Index.cshtml` | The budget dashboard, typed directly to `IReadOnlyList<DepartmentSummaryDto>`: `.stats-grid` totals on top, then a `.data-table` of Code, Department, Active employees, Monthly payroll, Budget, Remaining and Active projects plus a budget-status badge; record cards below 1024px. Over-budget rows use `.over-budget` with `.negative`/`.badge.over` (`#i-alert`), so the state is carried by colour, an icon and the words. OPS appears with zeros because the procedure left joins from `Departments`. |
 | `Views/Shared/Error.cshtml` | The design-system error state for `HomeController.Error`, reached by `UseExceptionHandler` and by status-code re-execution; the action puts the original status back on the response. |
 
 Bootstrap is not referenced by the layout. `wwwroot/lib/bootstrap` and the template
-`Views/Shared/_Layout.cshtml.css` still exist on disk but nothing links them. The Home, Employees
-and Projects screens exist, so only the Dashboard nav link answers the branded 404 until its stage
-lands. New screens start from `.page`, `.page-header`, `.panel`, `.data-table`, `.field` and the
-`.button` variants instead of new CSS.
+`Views/Shared/_Layout.cshtml.css` still exist on disk but nothing links them. Every nav item now
+resolves to a real screen - Home, Employees, Projects and Dashboard - so no link in the app answers
+the branded 404. New screens start from `.page`, `.page-header`, `.panel`, `.data-table`, `.field`
+and the `.button` variants instead of new CSS.
+
+The dashboard needed no ported CSS at all: `.stats-grid`, `.stat-card.featured`, `.data-table
+.over-budget`, `.record-card.over-budget`, `.badge.over`/`.within` and `.negative`/`.positive` are
+all already in `site.css` from the export. Two export card icons (`salary`, `departments`) are not
+in this project's sprite, which carries only the glyphs the screens use, so the cards reuse
+`#i-dashboard`, `#i-alert`, `#i-briefcase` and `#i-users` rather than adding symbols.
 
 Two controllers now answer to `ProjectsController`: the MVC one in `WebApp` and the JSON one in
 `Api`. Both have an action named `Assign`, so `asp-action="Assign"` resolved to the API route and
