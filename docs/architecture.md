@@ -336,13 +336,22 @@ Porting rules for the MVC screens:
 | `Views/Employees/Delete.cshtml` | The deactivation confirmation page, rendered from `EmployeeDto`: `Sensitive action` eyebrow, Active badge, a `.record-details` card of number/department/position/manager, and a POST form with `Keep active` / `Deactivate employee`. The export draws this as a `<dialog>`; T30 asks for a page, so the dialog's copy moved to `.panel`. |
 | `Views/Employees/AdjustSalary.cshtml` | The salary and promotion page: current position and salary as read-only `.record-details`, then a position select preselected to the current one, the new monthly salary in an `.input-prefix`, and a required reason `textarea`. `.field textarea`, `.form-divider` and the page-level `.error-summary` margin are the T30 additions. |
 | `Views/Projects/Index.cshtml` | The project portfolio: `.data-table` with code, project, department, start, end, status badge, active team and a Details link; record cards below 1024px. Dates are invariant-culture formatted and a null end date is an em dash with an `sr-only` label. |
+| `Views/Projects/Details.cshtml` | One project: information card, member table (number, name, position, role, allocation bar, assigned date, inactive marker) with record cards below 1024px, and the add-member form for Active/Planning projects only. |
+| `Models/ProjectDetailsViewModel.cs` | `ProjectDetailDto Project`, `IEnumerable<SelectListItem> Employees`, `AssignEmployeeRequest NewAssignment`. Only the request is posted; the rest is rebuilt from the database on every render. |
 | `Views/Shared/Error.cshtml` | The design-system error state for `HomeController.Error`, reached by `UseExceptionHandler` and by status-code re-execution; the action puts the original status back on the response. |
 
 Bootstrap is not referenced by the layout. `wwwroot/lib/bootstrap` and the template
 `Views/Shared/_Layout.cshtml.css` still exist on disk but nothing links them. The Home, Employees
 and Projects screens exist, so only the Dashboard nav link answers the branded 404 until its stage
-lands; `/Projects/Details/{id}` is the same until T32. New screens start from `.page`,
-`.page-header`, `.panel`, `.data-table`, `.field` and the `.button` variants instead of new CSS.
+lands. New screens start from `.page`, `.page-header`, `.panel`, `.data-table`, `.field` and the
+`.button` variants instead of new CSS.
+
+Two controllers now answer to `ProjectsController`: the MVC one in `WebApp` and the JSON one in
+`Api`. Both have an action named `Assign`, so `asp-action="Assign"` resolved to the API route and
+posted the form to `/api/Projects/{id}/assign`. The MVC action carries
+`[HttpPost("Projects/Assign/{id:int}", Name = "ProjectAssign")]` and the view uses `asp-route`,
+which makes the target explicit; any new action whose name exists in both controllers needs the
+same treatment.
 
 Project status badges reuse the export's own classes — `.badge.planning`, `.badge.active`,
 `.badge.completed`, `.badge.cancelled` — because the design system already defines those four

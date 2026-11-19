@@ -676,9 +676,54 @@ Details links emit the right ids; keyboard tabbing reaches them with the 3px foc
 marks Projects current; and 360, 768, 1024 and 1440 all report `scrollWidth <= innerWidth`.
 `requests.http` still passes 63/63 and the seed was restored to `4|10|9|6|7|0`.
 
+## T32 — Project details and team assignment
+
+`GET /Projects/Details/{id}` loads the project through `GetDetailsAsync` and the assignable
+employees through `GetAssignableEmployeeOptionsAsync`, then composes `ProjectDetailsViewModel`:
+`ProjectDetailDto Project`, `IEnumerable<SelectListItem> Employees` and `AssignEmployeeRequest
+NewAssignment`. A null project is `NotFound()`, so an unknown id answers the branded 404 rather than
+an empty screen.
+
+The information card shows code, department, start, end, active team size and whether assignments
+are open, with the status badge in the panel header. The member table carries Number, Name,
+Position, Role, Allocation, Assigned and Status. Allocation is a native `<progress max="100">`
+beside its number, so the bar is drawn by the browser and the value is exposed to assistive
+technology; the export only styles `<progress>` inside `.workload-card`, so `site.css` gained one
+`.allocation` rule that reuses the export's accent colour and bar height at a column width. A
+`Completed` project still lists its members, and a member who has since been deactivated keeps their
+row and gets the neutral `Inactive` badge; the active team count drops while the assignment stays.
+
+The add-member form renders only for `Active` and `Planning` projects. That is a display decision,
+not the rule: a hand-crafted post to PRJ-004 still reaches the repository, which is the only place
+that decides what a status permits, and it answers `BusinessRuleException` -> `TempData["Error"]`.
+`ConflictException` is the workload cap and becomes `TempData["Warning"]`, because the request was
+understood and could succeed at a smaller percentage; its message names the current, requested and
+total percentages ("Allocation would reach 110% (current 100% + requested 10%). Maximum is 100%").
+An invalid post re-renders the screen with the submitted values and a page-level summary linked to
+each control, because the form sits below two panels and a field message alone is off-screen.
+
+Three defects were found and fixed while verifying, not by reading the source. The form posted to
+`/api/Projects/{id}/assign`: `EnterpriseHR.Api` also has a `Projects.Assign` action, so link
+generation resolved `asp-action="Assign"` to the JSON endpoint. The MVC action now declares
+`[HttpPost("Projects/Assign/{id:int}", Name = "ProjectAssign")]` and the view uses `asp-route`, which
+removes the ambiguity instead of depending on candidate order. The allocation input rendered
+`value="0"` on a fresh form — the value the 1-100 rule always rejects — so it starts empty and hands
+back the attempted value after a rejected post. And all three controls inherited the shared
+contract's framework messages client-side ("The field AllocationPercentage must be between 1 and
+100.") while the server pass rewrote them, so `data-val-*` attributes now carry the same sentences
+the controller writes. `AssignEmployeeRequest` was left untouched: it is the API's contract, and
+changing its attributes would change API responses.
+
+Verified against SQL Server and in Chromium. E002 at 10% on PRJ-003 answers the warning treatment
+with current/requested/total and leaves the row count unchanged at 7. E003 at 50% on PRJ-002 answers
+success, refreshes the list to 2 members and persists 80% total for that employee. Empty form,
+allocation 101, inactive E005, duplicate E002, closed PRJ-004 and unknown project 999 each produce
+the expected result, every rejected path writes nothing, and a post without the antiforgery token
+answers 400. 360/768/1024/1440 report `scrollWidth <= innerWidth`, the table swaps to cards below
+1024px, and `requests.http` still passes 63/63. The seed was restored to `4|10|9|6|7|0`.
+
 ## Next
 
-T32 adds the project detail screen: project information plus the assignment table, and the
-assignment form for Active and Planning projects. T33 adds the dashboard. Each new screen starts
-from the existing shell, `.page`, `.panel`, `.data-table`, `.field` and `.form-grid`; each new API
-endpoint gets a group in `requests.http` and a section in `docs/TEST-SCENARIO-API.md`.
+T33 adds the dashboard. Each new screen starts from the existing shell, `.page`, `.panel`,
+`.data-table`, `.field` and `.form-grid`; each new API endpoint gets a group in `requests.http` and
+a section in `docs/TEST-SCENARIO-API.md`.

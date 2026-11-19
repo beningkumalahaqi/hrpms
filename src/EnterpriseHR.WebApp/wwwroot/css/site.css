@@ -553,6 +553,23 @@ small { font-size: var(--text-sm); }
    entirely on a valid render, so this changes nothing there. */
 .panel-body > .error-summary { margin-bottom: var(--space-3); }
 
+/* ---------------------------------------------------------------------------
+   Project details (T32)
+
+   The export draws <progress> only inside .workload-card, where it spans the
+   card width as an editing aid. A table cell needs the same bar at a column
+   width with the value still readable beside it, so .allocation reuses the
+   export's accent colour and bar height instead of the full-width rule.
+   --------------------------------------------------------------------------- */
+
+.allocation { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-1); }
+.allocation progress { inline-size: 6rem; block-size: 0.5rem; accent-color: var(--color-primary); }
+.allocation span { flex: none; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 767px) {
+  .allocation progress { inline-size: 4rem; }
+}
+
 @media (hover: hover) {
   .module-card:hover { border-color: #a5a3cf; box-shadow: 0 8px 24px rgb(23 32 51 / 8%); }
   .alert .icon-button:hover { color: inherit; background: rgb(23 32 51 / 8%); }

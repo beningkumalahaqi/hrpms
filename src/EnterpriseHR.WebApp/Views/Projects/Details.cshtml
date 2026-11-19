@@ -1,0 +1,356 @@
+﻿@model ProjectDetailsViewModel
+@using System.Globalization
+@{
+    var project = Model.Project;
+
+    ViewData["Title"] = project.ProjectName;
+
+    // The add-member form is only offered where the repository would accept it. The rule is
+    // repeated by the repository for anything that arrives as a hand-crafted post; this copy
+    // exists so the screen does not invite a submission that cannot succeed.
+    var canAssign = project.Status is "Active" or "Planning";
+
+    // Same pinned format as the portfolio: the screens are English throughout, so a host in
+    // another locale must not mix month names into this table.
+    string Date(DateTime value) =>
+        value.ToString("MMM d, yyyy", CultureInfo.InvariantCulture);
+
+    // Statuses map onto the export's badge classes and pair the colour with the icon the design
+    // system specimen uses, so the state never relies on colour alone.
+    string BadgeClass(string status) => status.ToLowerInvariant() switch
+    {
+        "planning" => "planning",
+        "cancelled" => "cancelled",
+        "completed" => "completed",
+        _ => "active",
+    };
+
+    string BadgeIcon(string status) => status.ToLowerInvariant() switch
+    {
+        "planning" => "i-clock",
+        "cancelled" => "i-cancel",
+        _ => "i-check-circle",
+    };
+
+    // The client pass marks a control with .input-validation-error but never sets
+    // aria-invalid, which is what the design system keys its error border off.
+    string? Invalid(string field) =>
+        ViewData.ModelState.TryGetValue(field, out var entry) && entry.Errors.Count > 0
+            ? "true"
+            : null;
+
+    // AllocationPercentage is a non-nullable int, so an untouched form would render value="0" and
+    // invite a submission the 1-100 rule always rejects. The export's own specimen leaves the
+    // field empty. An explicit value wins over the tag helper, so a rejected post has to hand
+    // back the attempted value itself; without this the number the user typed disappears.
+    const string allocationField = "NewAssignment.AllocationPercentage";
+    string AllocationValue() =>
+        ViewData.ModelState.TryGetValue(allocationField, out var entry)
+            && !string.IsNullOrEmpty(entry.AttemptedValue)
+                ? entry.AttemptedValue
+                : string.Empty;
+
+    // Control ids are declared on the controls below, so the summary can link to them. The
+    // design system's specimen links every message to the field it belongs to; a message about
+    // the form as a whole has nothing to link to.
+    string? ControlId(string field) => field switch
+    {
+        "NewAssignment.EmployeeId" => "assignEmployee",
+        "NewAssignment.RoleInProject" => "assignRole",
+        "NewAssignment.AllocationPercentage" => "assignAllocation",
+        _ => null,
+    };
+    var formErrors = ViewData.ModelState
+        .Where(entry => entry.Value is { Errors.Count: > 0 })
+        .SelectMany(entry => entry.Value!.Errors.Select(error => (
+            Field: entry.Key,
+            Message: string.IsNullOrWhiteSpace(error.ErrorMessage)
+                ? "Check this value."
+                : error.ErrorMessage)))
+        .ToList();
+
+    // The shared request contract carries the framework's default messages ("The field
+    // AllocationPercentage must be..."), which name properties and differ from the sentences the
+    // controller writes for the server pass. These attributes make the client pass say the same
+    // thing, so a message does not change wording depending on whether JavaScript ran.
+    const string employeeRequired = "Select an employee.";
+    const string roleRequired = "Enter the role this person fills on the project.";
+    const string roleTooLong = "Use 100 characters or fewer.";
+
+    // One sentence serves both rules: a missing value and an out-of-range value need the same
+    // correction, and the controller writes the identical sentence for the server pass.
+    const string allocationInvalid = "Enter an allocation between 1% and 100%.";
+
+    var activeMembers = project.Members.Count(member => member.IsEmployeeActive);
+}
+<div class="page">
+    <header class="page-header">
+        <div class="page-heading">
+            <span class="eyebrow">Projects / @project.ProjectCode</span>
+            <h1>@project.ProjectName</h1>
+            <p class="page-description">Ownership, timing and delivery status for this project, with every employee assigned to it.</p>
+        </div>
+        <div class="page-actions">
+            <a class="button secondary" asp-action="Index">Back to projects</a>
+        </div>
+    </header>
+
+    <section class="panel" aria-labelledby="projectInfoTitle">
+        <div class="panel-header">
+            <div class="panel-heading">
+                <h2 id="projectInfoTitle">Project information</h2>
+                <p>Ownership, timing and current delivery status.</p>
+            </div>
+            <span class="badge @BadgeClass(project.Status)">
+                <svg class="od-icon od-icon-status" aria-hidden="true" focusable="false"><use href="#@BadgeIcon(project.Status)" /></svg>
+                <span>@project.Status</span>
+            </span>
+        </div>
+        <div class="panel-body">
+            <dl class="project-meta">
+                <div><dt>Project code</dt><dd class="mono">@project.ProjectCode</dd></div>
+                <div><dt>Owning department</dt><dd>@project.DepartmentName</dd></div>
+                <div><dt>Start date</dt><dd class="od-nowrap">@Date(project.StartDate)</dd></div>
+                <div>
+                    <dt>End date</dt>
+                    <dd class="od-nowrap">
+                        @if (project.EndDate is DateTime endDate)
+                        {
+                            @Date(endDate)
+                        }
+                        else
+                        {
+                            @* Open-ended work has no end date; the dash stays out of the
+                               accessibility tree and a spoken label takes its place. *@
+                            <span class="muted" aria-hidden="true">&mdash;</span>
+                            <span class="sr-only">No end date</span>
+                        }
+                    </dd>
+                </div>
+                <div><dt>Active team members</dt><dd class="numeric">@activeMembers</dd></div>
+                <div>
+                    <dt>Assignment availability</dt>
+                    <dd>@(canAssign ? "Open for team assignments" : "Closed for new assignments")</dd>
+                </div>
+            </dl>
+        </div>
+    </section>
+
+    <section class="panel" aria-labelledby="membersTitle">
+        <div class="panel-header">
+            <div class="panel-heading">
+                <h2 id="membersTitle">Assigned team members</h2>
+                <p>Former employees stay listed, marked inactive, so the project history stays complete.</p>
+            </div>
+            <span class="data-chip">@project.Members.Count assigned</span>
+        </div>
+
+        @if (project.Members.Count == 0)
+        {
+            <div class="empty-state">
+                <h2>No team members assigned</h2>
+                @if (canAssign)
+                {
+                    <p>Assign the first team member below to start the project team.</p>
+                }
+                else
+                {
+                    <p>This project finished without any recorded assignments.</p>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="desktop-table table-wrap">
+                <table class="data-table">
+                    <caption class="sr-only">Team members assigned to @project.ProjectCode</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Number</th>
+                            <th scope="col">Name</th>
+                            <th scope="col">Position</th>
+                            <th scope="col">Role</th>
+                            <th scope="col" class="numeric">Allocation</th>
+                            <th scope="col">Assigned</th>
+                            <th scope="col">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var member in project.Members)
+                        {
+                            <tr>
+                                <td><span class="mono">@member.EmployeeNumber</span></td>
+                                <td><span class="cell-primary">@member.FullName</span></td>
+                                <td>@member.PositionTitle</td>
+                                <td>@member.RoleInProject</td>
+                                <td class="numeric">
+                                    @* A native progress element carries the value for assistive
+                                       technology; the label beside it keeps the number readable
+                                       when the bar is short. *@
+                                    <span class="allocation">
+                                        <progress max="100" value="@member.AllocationPercentage"
+                                                  aria-label="Allocation for @member.FullName on @project.ProjectCode">@member.AllocationPercentage%</progress>
+                                        <span aria-hidden="true">@member.AllocationPercentage%</span>
+                                    </span>
+                                </td>
+                                <td class="od-nowrap">@Date(member.AssignedDate)</td>
+                                <td>
+                                    @if (member.IsEmployeeActive)
+                                    {
+                                        <span class="badge active">
+                                            <svg class="od-icon od-icon-status" aria-hidden="true" focusable="false"><use href="#i-check-circle" /></svg>
+                                            <span>Active</span>
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge inactive">
+                                            <svg class="od-icon od-icon-status" aria-hidden="true" focusable="false"><use href="#i-cancel" /></svg>
+                                            <span>Inactive</span>
+                                        </span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @* Below 1024px the export swaps the table for one record card per member. *@
+            <div class="mobile-records">
+                @foreach (var member in project.Members)
+                {
+                    <article class="record-card">
+                        <div class="record-header">
+                            <div class="record-title">
+                                <strong>@member.FullName</strong>
+                                <span><span class="mono">@member.EmployeeNumber</span> - @member.PositionTitle</span>
+                            </div>
+                            @if (member.IsEmployeeActive)
+                            {
+                                <span class="badge active">
+                                    <svg class="od-icon od-icon-status" aria-hidden="true" focusable="false"><use href="#i-check-circle" /></svg>
+                                    <span>Active</span>
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge inactive">
+                                    <svg class="od-icon od-icon-status" aria-hidden="true" focusable="false"><use href="#i-cancel" /></svg>
+                                    <span>Inactive</span>
+                                </span>
+                            }
+                        </div>
+                        <dl class="record-details">
+                            <div><dt>Project role</dt><dd>@member.RoleInProject</dd></div>
+                            <div>
+                                <dt>Allocation</dt>
+                                <dd>
+                                    <span class="allocation">
+                                        <progress max="100" value="@member.AllocationPercentage"
+                                                  aria-label="Allocation for @member.FullName on @project.ProjectCode">@member.AllocationPercentage%</progress>
+                                        <span aria-hidden="true">@member.AllocationPercentage%</span>
+                                    </span>
+                                </dd>
+                            </div>
+                            <div><dt>Assigned date</dt><dd class="od-nowrap">@Date(member.AssignedDate)</dd></div>
+                        </dl>
+                    </article>
+                }
+            </div>
+        }
+    </section>
+
+    @if (canAssign)
+    {
+        <form method="post" asp-route="ProjectAssign" asp-route-id="@project.Id">
+            <section class="panel" aria-labelledby="assignTitle">
+                <div class="panel-header">
+                    <div class="panel-heading">
+                        <h2 id="assignTitle">Add team member</h2>
+                        <p>An employee's total allocation across Active and Planning projects cannot exceed 100%.</p>
+                    </div>
+                </div>
+
+                <div class="panel-body">
+                    @* The form sits below the project and member panels, so a field message
+                       alone would be off-screen on a rejected post. The summary is the same
+                       .error-summary the other forms use, with each entry linked to its control
+                       as the design system's specimen does. *@
+                    @if (formErrors.Count > 0)
+                    {
+                        <div class="error-summary" role="alert" tabindex="-1">
+                            <strong>Review @formErrors.Count @(formErrors.Count == 1 ? "field" : "fields") before saving.</strong>
+                            <ul>
+                                @foreach (var error in formErrors)
+                                {
+                                    var controlId = ControlId(error.Field);
+                                    <li>
+                                        @if (controlId is null)
+                                        {
+                                            <span>@error.Message</span>
+                                        }
+                                        else
+                                        {
+                                            <a href="#@controlId">@error.Message</a>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    }
+
+                    <div class="form-grid">
+                        <div class="field od-field">
+                            <label asp-for="NewAssignment.EmployeeId">Employee <span aria-hidden="true">*</span></label>
+                            <select asp-for="NewAssignment.EmployeeId" asp-items="Model.Employees" id="assignEmployee"
+                                    data-val-required="@employeeRequired"
+                                    aria-invalid="@Invalid("NewAssignment.EmployeeId")" aria-describedby="assignEmployeeHelp">
+                                <option value="">-- Select an employee --</option>
+                            </select>
+                            <small class="field-help" id="assignEmployeeHelp">Active employees only. The employee number is shown after the name.</small>
+                            <span asp-validation-for="NewAssignment.EmployeeId" class="field-error"></span>
+                        </div>
+
+                        <div class="field od-field">
+                            <label asp-for="NewAssignment.RoleInProject">Project role <span aria-hidden="true">*</span></label>
+                            <input asp-for="NewAssignment.RoleInProject" type="text" autocomplete="off" id="assignRole"
+                                   placeholder="For example, Technical lead"
+                                   data-val-required="@roleRequired" data-val-length="@roleTooLong"
+                                   aria-invalid="@Invalid("NewAssignment.RoleInProject")" />
+                            <span asp-validation-for="NewAssignment.RoleInProject" class="field-error"></span>
+                        </div>
+
+                        <div class="field od-field">
+                            <label asp-for="NewAssignment.AllocationPercentage">Allocation <span aria-hidden="true">*</span></label>
+                            <div class="input-suffix">
+                                <input asp-for="NewAssignment.AllocationPercentage" type="number" value="@AllocationValue()" id="assignAllocation"
+                                       min="1" max="100" step="1" inputmode="numeric"
+                                       data-val-required="@allocationInvalid" data-val-range="@allocationInvalid"
+                                       aria-invalid="@Invalid("NewAssignment.AllocationPercentage")"
+                                       aria-describedby="assignAllocationHelp" />
+                                <span aria-hidden="true">%</span>
+                            </div>
+                            <small class="field-help" id="assignAllocationHelp">Share of this person's total workload, between 1% and 100%.</small>
+                            <span asp-validation-for="NewAssignment.AllocationPercentage" class="field-error"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-footer">
+                    <div class="form-actions">
+                        <a class="button secondary" asp-action="Details" asp-route-id="@project.Id">Cancel</a>
+                        <button class="button primary" type="submit">
+                            <svg class="od-icon od-icon-control" aria-hidden="true" focusable="false"><use href="#i-plus" /></svg>
+                            <span>Add member</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </form>
+    }
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
