@@ -640,8 +640,45 @@ the same table still show only Edit and Salary. Both screens were checked in Chr
 1440 with no horizontal overflow, and `requests.http` still passes 63/63 with the seed restored
 to `4|10|9|6|7|0`.
 
+## T31 — Project portfolio
+
+`GET /Projects` adds the project list. `ProjectsController` takes `IProjectService` and passes the
+result of `GetAllAsync` straight to the view as `IReadOnlyList<ProjectListItemDto>`; the list is
+unpaged and unfiltered because the repository already returns every project ordered by start date,
+and the screen adds no control it cannot honour.
+
+The table carries Code, Project, Department, Start, End, Status, Active team and a Details link.
+Dates render as `Aug 3, 2026` pinned to the invariant culture, so a host in another locale cannot
+mix month names into an English table. A null `EndDate` renders an em dash that is `aria-hidden`
+with an `sr-only` "No end date" beside it, the same treatment the directory gives a missing
+manager. The active-team column is the DTO's `ActiveMemberCount`, which the repository computes as
+`COUNT(e.Id)` over assignments joined to `Employees ... AND e.IsActive = 1`; it is therefore a
+count of current staff, not of assignment rows. That was measured rather than assumed: setting
+E009 inactive dropped PRJ-005 from 1 to 0 while its `ProjectAssignments` row stayed, and restoring
+E009 brought it back.
+
+Statuses reuse the export's badge vocabulary: `.badge.planning` with `#i-clock`,
+`.badge.active`/`.badge.completed` with `#i-check-circle`, `.badge.cancelled` with `#i-cancel`. The
+task text asked for `Planning=secondary, Completed=primary, Cancelled=danger`; that tone set does
+not exist in the design system, and the export explicitly documents Cancelled as "Stopped work,
+shown without alarm color" while reserving indigo for actions. The export won, since the mandatory
+UI instruction makes it the source of truth and forbids inventing a visual direction beside an
+existing reference. The four tones are still distinct and never carry meaning by colour alone.
+`#i-clock` was missing from the shared sprite, so it was copied verbatim from
+`design-system/design-system.html` into `_Layout.cshtml` — the only file changed outside the two
+the task names.
+
+Below 1024px the table swaps for one record card per project, as on the directory. The Details
+link targets `/Projects/Details/{id}`, which is T32 and answers the branded 404 until then. Verified
+against SQL Server and in Chromium: PRJ-001 shows 2 active members and the database agrees;
+PRJ-003, PRJ-006 and PRJ-002 show the em dash; all six statuses render in their own tone; the
+Details links emit the right ids; keyboard tabbing reaches them with the 3px focus ring; the nav
+marks Projects current; and 360, 768, 1024 and 1440 all report `scrollWidth <= innerWidth`.
+`requests.http` still passes 63/63 and the seed was restored to `4|10|9|6|7|0`.
+
 ## Next
 
-T31 onward adds the project list and detail screens, then the dashboard. Each new screen starts
+T32 adds the project detail screen: project information plus the assignment table, and the
+assignment form for Active and Planning projects. T33 adds the dashboard. Each new screen starts
 from the existing shell, `.page`, `.panel`, `.data-table`, `.field` and `.form-grid`; each new API
 endpoint gets a group in `requests.http` and a section in `docs/TEST-SCENARIO-API.md`.

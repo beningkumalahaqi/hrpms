@@ -326,7 +326,7 @@ Porting rules for the MVC screens:
 | Asset | What it holds |
 | ----- | ------------- |
 | `wwwroot/css/site.css` | The export's `OD-LAYOUT-PRIMITIVES` block, then `design-system/styles.css` verbatim (`:root` tokens, type scale, buttons, panels, tables, pagination, states), then one labelled section for the app shell. Change the export first and re-port; do not restyle the copied rules inline. |
-| `Views/Shared/_Layout.cshtml` | Skip link, icon sprite, sticky top navigation, `<main>` and footer. The export's sidebar plus topbar are composed into one header because the screens use top navigation; the brand, `.nav-item` and active-state tokens are unchanged, and the active route is derived from `RouteData`. |
+| `Views/Shared/_Layout.cshtml` | Skip link, icon sprite, sticky top navigation, `<main>` and footer. The export's sidebar plus topbar are composed into one header because the screens use top navigation; the brand, `.nav-item` and active-state tokens are unchanged, and the active route is derived from `RouteData`. The sprite carries every glyph the screens use, including `#i-clock` for the Planning badge, copied from the export's own sprite. |
 | `Views/Shared/_Alerts.cshtml` | `TempData["Success"]`, `["Warning"]` and `["Error"]` as inline alerts with `role="status"`/`role="alert"` and a dismiss control. Rendered by the layout above `RenderBody()`. |
 | `Views/Shared/_Pager.cshtml` | The design-system `.pagination` markup, built from `(Page, TotalPages, RouteValues)`. Links keep the current query string and override only `page`. |
 | `Views/Home/Index.cshtml` | Page header plus one card per module. |
@@ -335,13 +335,20 @@ Porting rules for the MVC screens:
 | `Views/Employees/Edit.cshtml` | The edit form: only the `UpdateEmployeeRequest` fields are controls; the number, position and salary are read-only text and the salary page is linked from the grid. Same validation wiring as Create. |
 | `Views/Employees/Delete.cshtml` | The deactivation confirmation page, rendered from `EmployeeDto`: `Sensitive action` eyebrow, Active badge, a `.record-details` card of number/department/position/manager, and a POST form with `Keep active` / `Deactivate employee`. The export draws this as a `<dialog>`; T30 asks for a page, so the dialog's copy moved to `.panel`. |
 | `Views/Employees/AdjustSalary.cshtml` | The salary and promotion page: current position and salary as read-only `.record-details`, then a position select preselected to the current one, the new monthly salary in an `.input-prefix`, and a required reason `textarea`. `.field textarea`, `.form-divider` and the page-level `.error-summary` margin are the T30 additions. |
+| `Views/Projects/Index.cshtml` | The project portfolio: `.data-table` with code, project, department, start, end, status badge, active team and a Details link; record cards below 1024px. Dates are invariant-culture formatted and a null end date is an em dash with an `sr-only` label. |
 | `Views/Shared/Error.cshtml` | The design-system error state for `HomeController.Error`, reached by `UseExceptionHandler` and by status-code re-execution; the action puts the original status back on the response. |
 
 Bootstrap is not referenced by the layout. `wwwroot/lib/bootstrap` and the template
-`Views/Shared/_Layout.cshtml.css` still exist on disk but nothing links them. Only the Home and
-Employees screens exist, so the Projects and Dashboard nav links answer the branded 404 until
-their stages land. New screens start from `.page`, `.page-header`, `.panel`, `.data-table`,
-`.field` and the `.button` variants instead of new CSS.
+`Views/Shared/_Layout.cshtml.css` still exist on disk but nothing links them. The Home, Employees
+and Projects screens exist, so only the Dashboard nav link answers the branded 404 until its stage
+lands; `/Projects/Details/{id}` is the same until T32. New screens start from `.page`,
+`.page-header`, `.panel`, `.data-table`, `.field` and the `.button` variants instead of new CSS.
+
+Project status badges reuse the export's own classes — `.badge.planning`, `.badge.active`,
+`.badge.completed`, `.badge.cancelled` — because the design system already defines those four
+states with their own icons and colours. Where a later brief names a different tone set
+(`secondary`/`primary`/`danger`), the export wins: it is the declared source of truth, and it
+deliberately keeps Cancelled neutral rather than alarming and reserves indigo for actions.
 
 Salary and position are never edited on the Edit form (assumption A3): that screen shows them
 read-only and links to `/Employees/AdjustSalary/{id}`, which is the only write path that also

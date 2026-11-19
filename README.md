@@ -90,7 +90,8 @@ steps, and the Apple Silicon caveats — is in
 | T28 | Employees index: search, department filter, include-inactive, paging | done |
 | T29 | Employees create and edit forms with dynamic department, position and manager selects | done |
 | T30 | Employee deactivation confirmation and salary/promotion adjustment with audit history | done |
-| T31+ | Project and dashboard screens | pending |
+| T31 | Projects index: portfolio table with dates, status badges and active team size | done |
+| T32+ | Project detail and dashboard screens | pending |
 
 The database, domain layer, data-access foundation, services and the API infrastructure
 (envelope, validation mapping, exception mapping, Swagger) are complete, and MVC plus the API
@@ -99,7 +100,9 @@ uses the HR Workspace design system with top navigation, shared alerts, a pager 
 The employee directory is the first real screen: it searches by name or number, filters by
 department, includes former staff on request and pages the results. Employees can be created,
 edited, deactivated through a confirmation card, and given a raise or promotion that writes a
-salary-history row. What is still missing: the project list and detail screens and the dashboard.
+salary-history row. The project portfolio follows the same pattern: every project with its
+department, dates, status badge and active team size, plus a link into its details. What is still
+missing: the project detail screen and the dashboard.
 The API can be exercised end to end with
 [`src/EnterpriseHR.Api/requests.http`](src/EnterpriseHR.Api/requests.http), whose scenarios are
 tabulated in [docs/TEST-SCENARIO-API.md](docs/TEST-SCENARIO-API.md).
@@ -117,7 +120,7 @@ migration tool, test projects, CI pipelines, and containerization of the .NET ap
 | [docs/architecture.md](docs/architecture.md) | Projects, layer responsibilities, data-access rules, design-system contract, scope. |
 | [docs/database.md](docs/database.md) | Schema, constraints, stored procedure, seed fixtures. |
 | [docs/TEST-SCENARIO-API.md](docs/TEST-SCENARIO-API.md) | API scenario matrix, paired with the runnable `src/EnterpriseHR.Api/requests.http`. |
-| [docs/development-stages.md](docs/development-stages.md) | T01–T30 stage log and what comes next. |
+| [docs/development-stages.md](docs/development-stages.md) | T01–T31 stage log and what comes next. |
 | [db/README.md](db/README.md) | Rules for the numbered SQL init scripts. |
 | [AGENTS.md](AGENTS.md) | Working rules for coding agents, including where each kind of knowledge belongs. |
 
