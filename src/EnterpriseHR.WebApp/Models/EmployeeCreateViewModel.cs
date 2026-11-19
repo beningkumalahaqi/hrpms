@@ -51,8 +51,7 @@ public class EmployeeCreateViewModel
     [Display(Name = "Manager")]
     public int? ManagerId { get; set; }
 
-    // ParseLimitsInInvariantCulture for the same reason as the request contracts: the limits are
-    // written with "." and must not be parsed with the machine's en-ID decimal separator.
+    // "." limits must parse invariantly; see UpdateSalaryRequest.NewSalary for the failure.
     [Display(Name = "Monthly salary")]
     [Required(ErrorMessage = "Enter a monthly salary.")]
     [Range(typeof(decimal), "0", "9999999999999999.99",

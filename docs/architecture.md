@@ -24,9 +24,9 @@ Dapper with hand-written, parameterized SQL.
 
 ## Modules
 
-The system manages employees, departments, projects, project assignments, and the
-attendance and leave records that HR depends on. It is delivered as two application
-modules over a single database:
+The system manages employees, departments, positions, projects and the assignments that
+place an employee on a project, plus the salary-history rows that record every pay change.
+It is delivered as two application modules over a single database:
 
 | Module | Project | Audience |
 | ------ | ------- | -------- |
@@ -36,7 +36,7 @@ modules over a single database:
 Both modules serve from one ASP.NET Core process, `EnterpriseHR.WebApp`, on one origin:
 the dashboard uses normal MVC routes (`/`, `/employees`) while the API answers under
 `/api/**`. `EnterpriseHR.Api` is a class library of controllers that the host discovers as
-an MVC application part — it is not a second executable.
+an MVC application part; it is not a second executable.
 
 Both modules call the same `EnterpriseHR.DataAccess` project. Business rules live in
 `EnterpriseHR.Domain`, so the dashboard and the API apply identical validation and
@@ -65,29 +65,30 @@ they call. `EnterpriseHR.DataAccess` is the single place where SQL is written; n
 a `SqlConnection` directly, which is what keeps the MVC dashboard and the API consistent as
 the schema evolves.
 
-The `EnterpriseHR.Api` reference direction is one-way — WebApp → Api — so the API assembly
+The `EnterpriseHR.Api` reference direction is one-way, WebApp → Api, so the API assembly
 cannot depend on the host. That is what lets `Api` stay a plain library with a
 `Microsoft.AspNetCore.App` framework reference and nothing executable in it.
 
 ## Domain layer
 
-- `Entities/` — one plain class per table, property names, order and CLR types matching
+- `Entities/`: one plain class per table, property names, order and CLR types matching
   the schema columns, no navigation properties. `ProjectStatus` holds the four status
   constants the `CK_Projects_Status` constraint accepts.
-- `Dtos/` — `EmployeeDto`, `ProjectListItemDto`, `ProjectMemberDto`, `ProjectDetailDto`,
-  `DepartmentSummaryDto`, `EmployeeFormOptions`, `SelectOptionDto`. Mutable classes with a
-  parameterless constructor so Dapper multi-map callbacks can build them column by
-  column. Computed values (`TotalAllocationOfMembers`, `IsOverBudget`, `TotalPages`) are
+- `Dtos/`: `EmployeeDto`, `ProjectListItemDto`, `ProjectMemberDto`, `ProjectDetailDto`,
+  `DepartmentSummaryDto`, `EmployeeFormOptions`, `SelectOptionDto`. The multi-mapped classes
+  are mutable with a parameterless constructor so Dapper's map callbacks can build them column
+  by column; `SelectOptionDto` is a positional record because the lookup query always returns
+  both columns. Computed values (`TotalAllocationOfMembers`, `IsOverBudget`, `TotalPages`) are
   read-only properties.
-- `Requests/` — `CreateEmployeeRequest`, `UpdateEmployeeRequest`, `UpdateSalaryRequest`,
+- `Requests/`: `CreateEmployeeRequest`, `UpdateEmployeeRequest`, `UpdateSalaryRequest`,
   `AssignEmployeeRequest`, `EmployeeFilter`. `DataAnnotations` limits mirror the table
   columns, so WebApp `ModelState` checks and the API's automatic 400s share one set of
   rules.
-- `Exceptions/` — abstract `AppException` plus `NotFoundException` (404),
+- `Exceptions/`: abstract `AppException` plus `NotFoundException` (404),
   `BusinessRuleException` (400) and `ConflictException` (409). The mapping is a
   convention, not code: Domain references no ASP.NET Core assemblies, and
   `ExceptionHandlingMiddleware` in `EnterpriseHR.Api` translates the types into status codes.
-- `Interfaces/` — `ILookupRepository`, `IEmployeeRepository`, `IProjectRepository`,
+- `Interfaces/`: `ILookupRepository`, `IEmployeeRepository`, `IProjectRepository`,
   `IReportRepository` and the `IEmployeeService`, `IProjectService`, `IReportService`
   contracts. Every method takes `CancellationToken ct = default` last; the four
   single-record lookups return `Task<T?>` so callers decide what a missing row means.
@@ -128,29 +129,31 @@ exactly once, in its `Program.cs`, so the process fails at startup when the conn
 is missing, and a missing registration surfaces on the first request instead of at startup.
 The API controllers resolve those same registrations because they run inside the same host.
 
-Current repositories: `LookupRepository` (department, position and employee option
-lists), `EmployeeRepository`, which implements `IEmployeeRepository` (paged reads with
-four-type multi-mapping, create, update, soft delete, and salary adjustment),
-`ProjectRepository`, which implements `IProjectRepository` (project list with active-member
-counts, details with every assignment in one batch, and assigning an employee under the
-100% workload cap), and `ReportRepository`, which implements `IReportRepository` and calls
-`dbo.sp_GetDepartmentSummary` as a stored procedure. Deactivation never removes the row:
-`IsActive` becomes 0, and a transaction that holds the row under `UPDLOCK` refuses the
-change while an active employee still reports to this person, or while they hold an
-assignment on an `Active` project. A salary adjustment changes `Salary`/`PositionId` and
-writes the matching `SalaryHistories` row in the same transaction.
+Current repositories, each implementing its Domain interface:
+
+- `LookupRepository`: department, position and employee option lists.
+- `EmployeeRepository`: paged reads with four-type multi-mapping, create, update, soft
+  delete, and salary adjustment.
+- `ProjectRepository`: project list with active-member counts, details with every
+  assignment in one batch, and assigning an employee under the 100% workload cap.
+- `ReportRepository`: calls `dbo.sp_GetDepartmentSummary` as a stored procedure.
+
+Deactivation never removes the row: `IsActive` becomes 0, and a transaction that holds the row
+under `UPDLOCK` refuses the change while an active employee still reports to this person, or
+while they hold an assignment on an `Active` project. A salary adjustment changes
+`Salary`/`PositionId` and writes the matching `SalaryHistories` row in the same transaction.
 
 Current services in `src/EnterpriseHR.DataAccess/Services/`: `EmployeeService`,
 `ProjectService` and `ReportService`, each implementing its Domain interface. They are thin
-orchestration only — null-guard the request, trim the text a form can send padded, clamp
-paging, delegate. No SQL and no business rule lives there: the workload cap, project status
-checks, salary range, uniqueness guards and soft-delete protections all stay in the
-repositories, which is what keeps the MVC host and the API consistent. `EmployeeService`
-normalises the filter into a copy so the caller's `EmployeeFilter` is untouched;
-`GetFormOptionsAsync` fetches departments, positions and managers with three sequential
-awaits and asks the lookup repository for active managers only, excluding the employee being
-edited. `ProjectService.GetAssignableEmployeeOptionsAsync` asks for active employees with no
-exclusion. See [development-stages.md](development-stages.md) for the stage that added them.
+orchestration only: null-guard the request, trim the text a form can send padded, clamp paging,
+delegate. No SQL and no business rule lives there: the workload cap, project status checks,
+salary range, uniqueness guards and soft-delete protections all stay in the repositories, which
+is what keeps the MVC host and the API consistent. `EmployeeService` normalises the filter into a
+copy so the caller's `EmployeeFilter` is untouched; `GetFormOptionsAsync` fetches departments,
+positions and managers with three sequential awaits and asks the lookup repository for active
+managers only, excluding the employee being edited.
+`ProjectService.GetAssignableEmployeeOptionsAsync` asks for active employees with no exclusion.
+See [development-stages.md](development-stages.md) for the stage that added them.
 
 ## API conventions
 
@@ -205,7 +208,7 @@ every `/api/**` path not listed here is a 404 envelope.
 `EmployeeFilter` with `IsActive = true` instead of forwarding the bound one, so a client-sent
 `?isActive=false` is ignored rather than widening the list to former staff. The remaining
 values are copied through, so query binding and the `EmployeeFilter` validation attributes
-still apply — `pageSize=0` or `pageSize=101` is a 400 validation failure, not a silent clamp.
+still apply: `pageSize=0` or `pageSize=101` is a 400 validation failure, not a silent clamp.
 Paging past the last page returns an empty `items` with the real `totalCount`.
 
 `PATCH /api/employees/{id:int}/salary` answers with the refreshed `EmployeeDto`, read back via
@@ -220,10 +223,10 @@ service returns null rather than returning a bare `NotFound()`, so the 404 body 
 same middleware as every other error envelope.
 
 `POST /api/projects/{id:int}/assign` follows the same rule by omission: it has no try/catch, and
-the repository's exception types already match the status map — `BusinessRuleException` (400)
-for an inactive employee, a project that is not `Active`/`Planning`, or an out-of-range
-percentage; `ConflictException` (409) for a duplicate assignment or an allocation that would
-exceed 100%; `NotFoundException` (404) for an unknown project or employee. The percentage is a
+the repository's exception types already match the status map. `BusinessRuleException` (400)
+covers an inactive employee, a project that is not `Active`/`Planning`, or an out-of-range
+percentage; `ConflictException` (409) covers a duplicate assignment or an allocation that would
+exceed 100%; `NotFoundException` (404) covers an unknown project or employee. The percentage is a
 share of the employee's *total* workload across projects, not of this one. The 201 body is built
 from the id the insert returned plus the values just persisted, so no read-back is needed; the
 `projectId` comes from the route, since the body deliberately carries none.
@@ -233,7 +236,7 @@ that one endpoint and nothing else reads it.
 `GET /api/reports/department-summary` is the only route declared with an explicit
 `[Route("api/reports")]`. The inherited `api/[controller]` template would give `/api/Reports`,
 which routing matches case-insensitively anyway, but the report contract names the path in
-lowercase and Swagger publishes whatever the template says — so the literal keeps the document
+lowercase and Swagger publishes whatever the template says, so the literal keeps the document
 honest rather than relying on case-insensitive matching. `[HttpGet("department-summary")]` fixes
 the action segment. The action awaits `GetDepartmentSummaryAsync`, which runs
 `dbo.sp_GetDepartmentSummary` through async Dapper with
@@ -242,7 +245,7 @@ the action segment. The action awaits `GetDepartmentSummaryAsync`, which runs
 
 The XML summaries and the `[ProducesResponseType]` attributes on these actions feed Swagger, but
 the XML half only reaches the document once `GenerateDocumentationFile` is enabled on the Api
-project — today `IncludeXmlComments` finds no file and the descriptions stay empty.
+project. Today `IncludeXmlComments` finds no file and the descriptions stay empty.
 
 ### Exercising the API
 
@@ -278,9 +281,8 @@ The SQL numbers are a safety net: repositories translate them already, so a `Sql
 arriving at the host means one escaped, and that case is logged at `Error` even though the
 response is a clean 4xx. Only the 500 path logs the full exception (`LogError`); the response
 never carries a stack trace, an exception message or a SQL identifier. Each is written with
-`WriteAsJsonAsync` as `ApiResponse<object>.Fail(message)`, so `data` is `null` — the
-`data`-carrying variant stays reserved for model validation, whose `data` holds the field
-errors.
+`WriteAsJsonAsync` as `ApiResponse<object>.Fail(message)`, so `data` is `null`. Only model
+validation uses the `data`-carrying variant, whose `data` holds the field errors.
 
 Two guards keep it honest. If `Response.HasStarted` the middleware cannot rewrite the response,
 so it logs and rethrows rather than appending JSON to a partially sent body. And the whole
@@ -326,7 +328,7 @@ Porting rules for the MVC screens:
 | Asset | What it holds |
 | ----- | ------------- |
 | `wwwroot/css/site.css` | The export's `OD-LAYOUT-PRIMITIVES` block, then `design-system/styles.css` verbatim (`:root` tokens, type scale, buttons, panels, tables, pagination, states), then one labelled section for the app shell. Change the export first and re-port; do not restyle the copied rules inline. |
-| `Views/Shared/_Layout.cshtml` | Skip link, icon sprite, the design system's `app-shell`: a persistent `.sidebar` (brand, `.side-nav` nav items, `.sidebar-note`), the mobile `.nav-scrim`, and the `.workspace` column with its `.topbar`. The active route is derived from `RouteData` and rendered as `.is-active` plus `aria-current="page"`; the side-nav marks the whole controller, so `Employees` stays current on `/Employees/Create`. Nav is Dashboard, Employees, Projects - the topbar names the current page from `ViewData["Title"]`. The sprite carries every glyph the screens use, including `#i-menu` for the drawer control and `#i-clock` for the Planning badge, both copied from the export's own sprite. |
+| `Views/Shared/_Layout.cshtml` | Skip link, icon sprite, the design system's `app-shell`: a persistent `.sidebar` (brand, `.side-nav` nav items, `.sidebar-note`), the mobile `.nav-scrim`, and the `.workspace` column with its `.topbar`. The active route is derived from `RouteData` and rendered as `.is-active` plus `aria-current="page"`; the side-nav marks the whole controller, so `Employees` stays current on `/Employees/Create`. Nav is Dashboard, Employees and Projects; the topbar names the current page from `ViewData["Title"]`. The sprite carries every glyph the screens use, including `#i-menu` for the drawer control and `#i-clock` for the Planning badge, both copied from the export's own sprite. |
 | `Views/Shared/_Alerts.cshtml` | `TempData["Success"]`, `["Warning"]` and `["Error"]` as inline alerts with `role="status"`/`role="alert"` and a dismiss control. Rendered by the layout above `RenderBody()`. |
 | `Views/Shared/_Pager.cshtml` | The design-system `.pagination` markup, built from `(Page, TotalPages, RouteValues)`. Links keep the current query string and override only `page`. |
 | `Views/Home/Index.cshtml` | Page header plus one card per module. |
@@ -343,7 +345,7 @@ Porting rules for the MVC screens:
 
 Bootstrap is not referenced by the layout. `wwwroot/lib/bootstrap` and the template
 `Views/Shared/_Layout.cshtml.css` still exist on disk but nothing links them. Every nav item
-resolves to a real screen - Dashboard, Employees, Projects - so no link in the app answers the
+resolves to a real screen (Dashboard, Employees, Projects), so no link in the app answers the
 branded 404. New screens start from `.page`, `.page-header`, `.panel`, `.data-table`, `.field`
 and the `.button` variants instead of new CSS.
 
@@ -353,7 +355,7 @@ suppress values equal to the route defaults, so the Dashboard nav item renders `
 the sidebar takes a 15.5rem column, `site.css` moves the `.desktop-table` → `.mobile-records` swap
 from 1024px up to 1279px: the export's own breakpoint table puts full tables at 1280px and up, and
 an eight-column table in the 761px the sidebar leaves at 1024px would push the document sideways.
-The app has no footer - it is an internal tool and the shell ends at `<main>`.
+The app has no footer: it is an internal tool and the shell ends at `<main>`.
 
 The dashboard needed no ported CSS at all: `.stats-grid`, `.stat-card.featured`, `.data-table
 .over-budget`, `.record-card.over-budget`, `.badge.over`/`.within` and `.negative`/`.positive` are
@@ -368,8 +370,8 @@ posted the form to `/api/Projects/{id}/assign`. The MVC action carries
 which makes the target explicit; any new action whose name exists in both controllers needs the
 same treatment.
 
-Project status badges reuse the export's own classes — `.badge.planning`, `.badge.active`,
-`.badge.completed`, `.badge.cancelled` — because the design system already defines those four
+Project status badges reuse the export's own classes (`.badge.planning`, `.badge.active`,
+`.badge.completed`, `.badge.cancelled`) because the design system already defines those four
 states with their own icons and colours. Where a later brief names a different tone set
 (`secondary`/`primary`/`danger`), the export wins: it is the declared source of truth, and it
 deliberately keeps Cancelled neutral rather than alarming and reserves indigo for actions.

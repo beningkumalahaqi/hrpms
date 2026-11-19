@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 // One pipeline serves both halves of the application: the Razor views in this assembly and the
 // attribute-routed API controllers in EnterpriseHR.Api. The API assembly is registered as an
 // MVC application part so its controllers are discovered where they live, without their source
@@ -72,11 +71,10 @@ builder.Services.AddEnterpriseHrDataAccess(builder.Configuration);
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+    // HSTS stays at the framework default of 30 days; the app is not deployed yet.
     app.UseHsts();
 }
 else
@@ -90,10 +88,9 @@ else
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
-// Registered ahead of routing so it can also catch what routing throws, and before the MVC
-// exception handler above so an API failure is answered with JSON instead of reaching that
-// HTML page. The middleware itself rethrows any non-/api request, which is what keeps MVC
-// pages on their own error handling.
+// Registered before routing so it also catches what routing throws, and inside the MVC
+// exception handler so an API failure is answered with JSON rather than that HTML page. The
+// middleware rethrows any non-/api request, which keeps MVC pages on their own error handling.
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 // Body-less MVC statuses (an unknown page, a 405 on a page route) get the branded error view
@@ -141,12 +138,9 @@ app.UseRouting();
 app.UseAuthorization();
 
 // Attribute routing wins over the conventional route, so /api/** reaches the API controllers
-// and every other path falls through to {controller=Dashboard}/{action=Index}/{id?}.
-//
-// Dashboard is the default controller/action pair, so "/" is the budget dashboard and
-// "/Dashboard" resolves to the same action: one action, one view, two URLs. Outbound link
-// generation suppresses values that equal the defaults, so a Tag Helper pointing at
-// Dashboard/Index renders href="/" rather than "/Dashboard".
+// and every other path falls through to {controller=Dashboard}/{action=Index}/{id?}. One
+// action and one view answer both "/" and "/Dashboard"; outbound link generation suppresses
+// values that equal the defaults, so a Dashboard link renders href="/".
 app.MapControllers();
 app.MapControllerRoute(
     name: "default",

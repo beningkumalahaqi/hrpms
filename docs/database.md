@@ -1,7 +1,7 @@
 # Database
 
 `EnterpriseHRDB` on SQL Server 2022. The schema, stored procedure and seed data are
-created by numbered scripts in `db/`, run by the `db-init` service — the container image
+created by numbered scripts in `db/`, run by the `db-init` service; the container image
 only provides the server. Setup steps are in [getting-started.md](getting-started.md);
 the rules for new scripts are in `db/README.md`.
 

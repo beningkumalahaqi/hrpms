@@ -31,7 +31,6 @@ public sealed class ReportsController : ApiControllerBase
     /// <summary>
     /// Gets one summary row per department, ordered by department name.
     /// </summary>
-    /// <param name="ct">Cancellation token for the request.</param>
     /// <returns>
     /// <see cref="DepartmentSummaryDto"/> records in <c>data</c>. There is no envelope around
     /// the list beyond the usual one: <c>data</c> <em>is</em> the array. A department with no

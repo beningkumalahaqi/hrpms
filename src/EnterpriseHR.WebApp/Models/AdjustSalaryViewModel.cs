@@ -42,8 +42,7 @@ public class AdjustSalaryViewModel
 
     public bool IsActive { get; set; }
 
-    // ParseLimitsInInvariantCulture for the same reason as the request contracts: the limits are
-    // written with "." and must not be parsed with the machine's en-ID decimal separator.
+    // "." limits must parse invariantly; see UpdateSalaryRequest.NewSalary for the failure.
     [Display(Name = "New monthly salary")]
     [Required(ErrorMessage = "Enter the new monthly salary.")]
     [Range(typeof(decimal), "0.01", "9999999999999999.99",

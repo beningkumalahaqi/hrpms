@@ -42,9 +42,10 @@ the log of what each stage added. The authoritative "what is done" summary is th
 | T33 | Budget dashboard: department summary with over-budget rows, status badges and totals | done |
 | T33.5 | Sidebar navigation, dashboard at `/`, and a reorganised employee filter panel | done |
 | T33.6 | Form grid alignment on Create/Edit/add-member, and "project directory" naming | done |
+| T33.7 | Documentation and code-comment cleanup across the repository | done |
 | T34+ | Final review and deployment | pending |
 
-## T01–T04 — Infrastructure and database
+## T01–T04: Infrastructure and database
 
 T01 added the repository, `docker-compose.yml` (SQL Server 2022 plus the `db-init` init
 container), `.env.example` and this documentation.
@@ -62,7 +63,7 @@ employees, 6 projects, 7 assignments, and an empty `SalaryHistories`. The seed i
 once `dbo.Departments` has a row, so re-running `db-init` neither errors nor duplicates
 data.
 
-## T05–T06 — Solution and wiring
+## T05–T06: Solution and wiring
 
 T05 added `EnterpriseHRSystem.sln` and the four projects under `src/`, wired
 `DataAccess → Domain` and `{WebApp, Api} → {Domain, DataAccess}`.
@@ -78,7 +79,7 @@ two hosts each called it from their own `Program.cs`, so either one failed at st
 clear message when the connection string was missing. Repositories register as scoped in the
 same method as they are added.
 
-## T07–T10 — Domain layer
+## T07–T10: Domain layer
 
 T07 added the six entity classes under `src/EnterpriseHR.Domain/Entities/`, one per table,
 plus `ProjectStatus` with the four status values `CK_Projects_Status` accepts. No
@@ -92,11 +93,11 @@ T09 added the exception hierarchy: abstract `AppException` and the
 `NotFoundException` (404), `BusinessRuleException` (400) and `ConflictException` (409)
 siblings. Domain still references no ASP.NET Core assemblies.
 
-T10 added the seven repository and service interfaces — 28 methods, `CancellationToken
+T10 added the seven repository and service interfaces: 28 methods, `CancellationToken
 ct = default` on every one, `Task<T?>` on the four single-record lookups, and DTO/request
 types (never entities) crossing the repository boundary.
 
-## T11–T20 — Data access
+## T11–T20: Data access
 
 T11 added `RepositoryBase`: `OpenAsync`, the only transaction runner in the solution, and
 `TranslateSql` for SQL Server errors 2627/2601/547. See
@@ -110,7 +111,7 @@ inactive records included.
 
 T13 added the employee read paths: `GetAllEmployeesAsync` (filtered `COUNT(*)` plus one
 `OFFSET`/`FETCH` page, never a query per row) and `GetEmployeeByIdAsync`. Both use one
-four-type Dapper multi-map — employee, department, position, manager — with the select
+four-type Dapper multi-map (employee, department, position, manager) with the select
 list ordered so `splitOn: "Id,Id,Id"` splits correctly. The manager join is a `LEFT JOIN`,
 so top-level managers come back with a null manager, and `Search` escapes `\`, `%`, `_`
 and `[` for `LIKE` so a typed wildcard matches literally. Paging clamps `Page` to at least
@@ -121,7 +122,7 @@ salary against the selected position's `MinSalary`/`MaxSalary` range, confirms t
 department and that a given manager exists and is active, then rejects a duplicate
 employee number or email with a `ConflictException` naming the field. `UpdateEmployeeAsync`
 validates the department and manager, refuses `ManagerId == Id`, and updates only
-`FullName`, `Email`, `DepartmentId`, `ManagerId` and `JoinDate` — salary and position are
+`FullName`, `Email`, `DepartmentId`, `ManagerId` and `JoinDate`. Salary and position are
 deliberately absent from the statement. Zero affected rows raises `NotFoundException`.
 
 Case-insensitive uniqueness comes from the database collation rather than lowercasing
@@ -141,7 +142,7 @@ solution, so an employee is never physically removed.
 
 T16 added `UpdateEmployeeSalaryAsync`, the salary-adjustment and promotion workflow. It runs
 in one transaction: the employee row is re-read under `UPDLOCK`, an inactive employee is
-rejected as a business rule (A1), the target position — `NewPositionId` or the current one —
+rejected as a business rule (A1), the target position (`NewPositionId` or the current one)
 must exist and the new salary must fall inside its range, and a request that changes neither
 salary nor position is refused as a no-op. The method then updates `Salary`/`PositionId` and
 inserts one `SalaryHistories` row (old salary, new salary, reason, default `ChangedAt`) on
@@ -150,7 +151,7 @@ place `EmployeeRepository` implements `IEmployeeRepository`.
 
 T17 added `ProjectRepository` with the two project read paths. `GetAllProjectsAsync` is a
 single grouped statement joining departments and a filtered `Employees` join, so
-`ActiveMemberCount` comes from one aggregate rather than a query per project — inactive
+`ActiveMemberCount` comes from one aggregate rather than a query per project: inactive
 members hold their assignment but are not counted. `GetProjectDetailsAsync` sends the
 project row and its assignments as two `SELECT`s in one `QueryMultipleAsync` batch, then
 reads the first result set as `ProjectDetailDto` and attaches the second as
@@ -165,7 +166,7 @@ non-blank, the employee must exist and be active, the project must exist and be 
 `Planning`, the employee must not already be on that project, and the resulting workload
 must not exceed 100%. The workload is the sum of the employee's allocation across `Active`
 and `Planning` projects only (A4), so an assignment on a Completed or Cancelled project never
-blocks new work — the seed's E004 carries a 100% Completed assignment and can still take a
+blocks new work; the seed's E004 carries a 100% Completed assignment and can still take a
 100% Active one. The employee row is read with `UPDLOCK, ROWLOCK`, so two concurrent
 assignments for the same person serialize: the second one sees the first one's row and is
 rejected, and the workload can never pass 100%. The insert returns
@@ -179,7 +180,7 @@ than sending SQL text: no parameters, one round trip, and the aggregation stays 
 server-side plan. The procedure aggregates employees and projects through two CTEs so the
 joins cannot multiply rows, and its aliases already match `DepartmentSummaryDto`, so Dapper
 maps all eight columns directly and the DTO computes `IsOverBudget`. It returns all four
-departments in name order — `FIN`, `HR`, `IT`, `OPS` — including OPS, which has no active
+departments in name order (`FIN`, `HR`, `IT`, `OPS`), including OPS, which has no active
 employees, so its salary is 0 and its whole budget is still available. Only IT is over
 budget: 77,000,000 in monthly salary against a 70,000,000 budget leaves −7,000,000.
 
@@ -187,7 +188,7 @@ T20 added the three services and registered everything in `AddEnterpriseHrDataAc
 services are thin on purpose: they trim the text a form can send padded (employee number,
 name, email, assignment role, salary-change reason), clamp `Page`/`PageSize` into range
 before the repository sees them, null-guard every request argument, and delegate. No SQL and
-no business rule lives in a service — the 100% workload cap, the status checks, the salary
+no business rule lives in a service: the 100% workload cap, the status checks, the salary
 range and the uniqueness guards all stay in the repositories, so the MVC host and the API
 cannot drift apart. `EmployeeService.GetFormOptionsAsync` loads departments, positions and
 managers with three sequential awaits (each lookup opens its own connection, so there is
@@ -209,11 +210,11 @@ v1** and is served in Development only, so Production answers 404 at `/swagger`.
 T21 also fixed a latent Domain bug it tripped over: `[Range(typeof(decimal), ...)]` parses its
 string limits with the current culture, so on a locale whose decimal separator is `,`
 (`en-ID`, the machine this was verified on) `"0.01"` parsed as 1 and the max limit threw
-`ArgumentException` during validation — a 500 on every create/update employee and salary
+`ArgumentException` during validation, a 500 on every create/update employee and salary
 request in either host. Both attributes now set `ParseLimitsInInvariantCulture = true`; the
 bounds themselves are unchanged.
 
-## T21.5 — One host, one origin
+## T21.5: One host, one origin
 
 T21.5 collapsed the two hosts into one. `EnterpriseHR.Api` changed from
 `Microsoft.NET.Sdk.Web` to `Microsoft.NET.Sdk` with a `Microsoft.AspNetCore.App`
@@ -247,7 +248,7 @@ controller resolved `IEmployeeService` and read live seed data (`total=10`, firs
 MVC path both return 404; `/api` is not reachable outside the prefix. Swagger remains
 Development-only: in Production it answers 404 while MVC still serves 200.
 
-## T22 — Global API exception handling
+## T22: Global API exception handling
 
 `src/EnterpriseHR.Api/Middleware/ExceptionHandlingMiddleware.cs` is a convention-based
 middleware (`RequestDelegate` + `ILogger<ExceptionHandlingMiddleware>`) that turns a failed
@@ -258,7 +259,7 @@ and anything else → 500 with the fixed sentence `"An unexpected error occurred
 `RepositoryBase.TranslateSql`, so a constraint error that escapes a repository still produces
 the right status instead of a 500; that case is logged at `Error` because it means a
 repository missed a translation. An `OperationCanceledException` whose `RequestAborted` fired
-is not an error at all — the client hung up, so the middleware writes no body and logs at
+is not an error at all: the client hung up, so the middleware writes no body and logs at
 `Debug`.
 
 Responses are written with `WriteAsJsonAsync` and `ApiResponse<object>.Fail(message)`, so
@@ -273,8 +274,8 @@ Registration is in the single WebApp pipeline, after `UseStaticFiles()` and befo
 MVC exception handler so MVC pages are unaffected. The middleware itself returns immediately
 for any path outside `/api`, rethrowing to that handler, which is what keeps the developer
 exception page in Development and `/Home/Error` in Production on an MVC request. A `UseWhen`
-branch on `/api` wraps the body-less framework statuses — 404 for an unknown route, 405 for a
-wrong verb — in the same envelope, guarded by `HasStarted`, a zero `ContentLength` and a null
+branch on `/api` wraps the body-less framework statuses (404 for an unknown route, 405 for a
+wrong verb) in the same envelope, guarded by `HasStarted`, a zero `ContentLength` and a null
 `ContentType` so a real payload is never overwritten.
 
 Verified with a throwaway probe controller in `Api` and one in WebApp, both later deleted:
@@ -288,7 +289,7 @@ model-binding failure still returned the T21 validation envelope with field erro
 that had already started was left untouched and logged. Client cancellation produced no
 response and no error log.
 
-## T23 — Employee endpoints
+## T23: Employee endpoints
 
 `src/EnterpriseHR.Api/Controllers/EmployeesController.cs` adds the first two real endpoints, so
 `/api/employees` stopped being a 404.
@@ -307,7 +308,7 @@ metacharacters escaped: `search=%`, `search=_` and `search=' OR 1=1--` all match
 `PATCH /api/employees/{id:int}/salary` calls `ChangeSalaryAsync`, then reads the employee back
 with `GetByIdAsync` and returns that DTO with `message` `"Salary updated."`. The read-back is
 deliberate: it returns what the database holds, including department and manager names the
-request never mentions. The controller has no try/catch — `NotFoundException` and
+request never mentions. The controller has no try/catch: `NotFoundException` and
 `BusinessRuleException` from the repository reach `ExceptionHandlingMiddleware` and leave as 404
 and 400 with `data: null`, the same split the middleware already applies elsewhere. A missing id
 in the read-back is treated defensively as a 404 rather than a null dereference.
@@ -333,13 +334,13 @@ history row. Malformed JSON, an empty body, a missing `reason`, a negative salar
 non-numeric query value each returned the 400 validation envelope. The probe rows and the salary
 changes were then reverted, leaving the seed at `4|10|9|6|7|0`.
 
-## T24 — Project endpoints
+## T24: Project endpoints
 
 `src/EnterpriseHR.Api/Controllers/ProjectsController.cs` exposes a project's details and the
 assignment operation.
 
 `GET /api/projects/{id:int}/details` calls `GetDetailsAsync` and turns a null result into
-`NotFoundException("Project not found.")` — thrown rather than returned, so the 404 body comes
+`NotFoundException("Project not found.")`, thrown rather than returned, so the 404 body comes
 from the same middleware as every other error, giving the exact message the contract asks for
 instead of a bare status. A found project returns `ProjectDetailDto` with its `members` array;
 former employees stay in that array with `isEmployeeActive: false`, keeping project history
@@ -348,7 +349,7 @@ intact.
 `POST /api/projects/{id:int}/assign` calls `AssignAsync` and answers 201 with
 `{ assignmentId, projectId, employeeId, allocationPercentage }` and a `Location` header for
 `GET /api/projects/{id}/details`. The body is built from the id the insert returned plus the
-values just persisted — no read-back, because the endpoint returns the assignment, not the
+values just persisted; no read-back, because the endpoint returns the assignment, not the
 project. `projectId` comes from the route: `AssignEmployeeRequest` deliberately carries only
 `employeeId`, `roleInProject` and `allocationPercentage`. `CreatedAssignmentDto` is a record
 nested in the controller, since it is this endpoint's response shape alone.
@@ -364,7 +365,7 @@ Verified against the live database, starting from 7 assignments. Rejections with
 afterwards (still 7 rows): duplicate E003 → PRJ-001 (409), E002 at 100% → PRJ-003 at 10% (409
 with `Allocation would reach 110% (current 100% + requested 10%)`), inactive E005 (400),
 `Completed` PRJ-004 (400), `Cancelled` PRJ-005 (400), unknown project 999 (404), unknown
-employee 999 (404), and six validation failures — allocation 0, allocation 101, missing role,
+employee 999 (404), and six validation failures: allocation 0, allocation 101, missing role,
 101-character role, `employeeId` 0 and malformed JSON. The accepted request, E003 → PRJ-002 at
 50%, returned 201, `Location: /api/Projects/2/details`, assignment id 24 and
 `allocationPercentage: 50`; E003's total allocation moved 30% → 80% and PRJ-002's member list
@@ -373,7 +374,7 @@ E003 back at 30%.
 
 `/api/projects` itself stays a 404: only `{id}/details` and `{id}/assign` are routed.
 
-## T25 — Report endpoint
+## T25: Report endpoint
 
 `src/EnterpriseHR.Api/Controllers/ReportsController.cs` exposes `GET
 /api/reports/department-summary`, the endpoint the original practical exam asked for.
@@ -398,9 +399,9 @@ Human Resources 2 / 38,000,000 / 22,000,000 / 0; IT 4 / 77,000,000 / -7,000,000 
 against the SQL output rather than eyeballed.
 
 The procedure really executes: `sys.dm_exec_procedure_stats` counted 15 executions before the
-first request, 16 after one and 17 after two. The call is async end to end — no `.Result`,
+first request, 16 after one and 17 after two. The call is async end to end (no `.Result`,
 `.Wait()`, `GetAwaiter().GetResult()` or synchronous Dapper call exists in the controller,
-service or repository — and 20 concurrent requests completed in 445 ms wall clock against 6.2 s
+service or repository), and 20 concurrent requests completed in 445 ms wall clock against 6.2 s
 of summed individual latency, which a blocking implementation could not achieve. Route edges:
 `/api/reports` is a 404 envelope, a trailing slash and different casing both return 200, `POST`
 on the path is the 405 envelope, and `/api/report/...` (singular) is a 404.
@@ -412,16 +413,16 @@ then restored from `db/02_sp_GetDepartmentSummary.sql` and its `sys.sql_modules`
 matched the pre-change hash exactly (`0xFE25CF50...`, 1186 characters). The endpoint is
 read-only, so the seed snapshot stayed `4|10|9|6|7|0`.
 
-## T26 — API request collection and scenario matrix
+## T26: API request collection and scenario matrix
 
 T26 adds no application code. It adds the two documents that make the API testable by hand:
 `src/EnterpriseHR.Api/requests.http` (63 runnable requests with a `# -> <status>` comment above
 each) and `docs/TEST-SCENARIO-API.md` (the same scenarios as a table, plus the seed fixture
 they assume).
 
-The collections are grouped by endpoint — resolve ids, employee list, employee list
+The collections are grouped by endpoint (resolve ids, employee list, employee list
 validation, salary adjustment, salary validation/transport, project details, assignment
-rejections, assignment create, department report, routing and method edges, Swagger — so a
+rejections, assignment create, department report, routing and method edges, Swagger), so a
 reviewer can run one group or the whole file. `@host = http://localhost:5100` is declared once;
 `@e001`-`@e005` and `@prj001`-`@prj006` alias the deterministic seed ids so no request carries a
 bare magic number. Employee ids are additionally resolvable over HTTP
@@ -446,7 +447,7 @@ The scenario matrix also records what the API does **not** have: there is no
 `GET /api/projects/{id}/details` is the closest thing to a lookup. That gap is stated in the doc
 instead of being worked around.
 
-## T27 — WebApp shell, layout, alerts and pager
+## T27: WebApp shell, layout, alerts and pager
 
 T27 turns the MVC host from the template into the HR Workspace shell. The visual source is
 `design-system/`, not a framework: `wwwroot/css/site.css` now contains the export's
@@ -493,7 +494,7 @@ page-1-of-1 disabled state. Both probes were reverted. The API request collectio
 after the pipeline change: 63 passed, 0 failed; the seed snapshot was restored to
 `4|10|9|6|7|0`.
 
-## T28 — Employees index screen
+## T28: Employees index screen
 
 T28 adds the first real screen, `EmployeesController.Index` plus `Views/Employees/Index.cshtml`.
 The action builds an `EmployeeFilter` with `PageSize = 10` and `IsActive = includeInactive ? null
@@ -521,8 +522,8 @@ and is omitted for an inactive row. Two components the export lacks are extended
 and a full-width `.filter-actions` row (the export filters live as you type and has no submit row).
 `i-search` and `i-plus` were added to the layout's sprite from `design-system.html`.
 
-Edit, Salary, Create and Deactivate are Tag-Helper targets for later stages and answer the branded
-404 today, which is how the rest of the shell behaves.
+Edit, Salary, Create and Deactivate were Tag-Helper targets for later stages at this point and
+answered the branded 404; T29 and T30 later filled them in.
 
 Verification ran against the live host and seed fixture. Build is 0 warnings, 0 errors. Search
 `E00` returned 8 active employees, `siti` returned 1, department 1 returned 4, and
@@ -536,7 +537,7 @@ matched nothing. Chromium at 320/360/390/430/600/820/1024/1440/1920 widths showe
 overflow, the table above 1024px and record cards below it. `requests.http` still passes 63/63,
 and the seed snapshot was restored to `4|10|9|6|7|0`.
 
-## T29 - Employee create and edit forms
+## T29: Employee create and edit forms
 
 T29 adds the two write screens the directory already linked to: `EmployeesController.Create`
 and `EmployeesController.Edit`, with `EmployeeCreateViewModel` and `EmployeeEditViewModel`.
@@ -601,7 +602,7 @@ only `Index`, so the Employees item lost its active state on the new sub-screens
 now matches by controller, which keeps Home active on `/` only. `requests.http` still
 passes 63/63 and the seed snapshot was restored to `4|10|9|6|7|0`.
 
-## T30 — Deactivate and salary adjustment
+## T30: Deactivate and salary adjustment
 
 T30 adds the two employee actions that are deliberately absent from the edit form. Deactivation
 is a soft delete and salary/position changes are audited, so both get their own screen instead of
@@ -611,8 +612,8 @@ a row button that writes on click.
 department, position and manager, with the `Sensitive action` eyebrow and an Active badge from
 the design system. The card states what deactivation keeps (the record and its project history)
 and what blocks it. `POST /Employees/Delete/{id}` calls `DeactivateAsync`. A `ConflictException`
-becomes `TempData["Error"]` with the repository's own sentence — "manages 3 active employee(s)",
-"still assigned to 1 active project(s)" — and the redirect returns to the directory; success sets
+becomes `TempData["Error"]` with the repository's own sentence ("manages 3 active employee(s)",
+"still assigned to 1 active project(s)") and the redirect returns to the directory; success sets
 `TempData["Success"]`. An already-inactive record is sent back with a warning instead of being
 posted, because the repository treats that call as a successful no-op and reporting success would
 imply something changed.
@@ -626,8 +627,8 @@ re-rendered with the submitted values; success sets `TempData["Success"]` naming
 title and amount and redirects to the directory.
 
 The audit trail is not bypassable from the edit form: a POST to `Edit` carrying `Salary`,
-`PositionId` or `EmployeeNumber` was ignored — `UpdateEmployeeRequest` has no such members, so
-model binding drops them — and no `SalaryHistories` row was written. Measured end to end against
+`PositionId` or `EmployeeNumber` was ignored (`UpdateEmployeeRequest` has no such members, so
+model binding drops them) and no `SalaryHistories` row was written. Measured end to end against
 SQL Server: E009 deactivated (`IsActive = 0`, row and salary intact); E001 answered "Cannot
 deactivate: employee manages 3 active employee(s)." and E010 "Cannot deactivate: employee is
 still assigned to 1 active project(s).", with both rows byte-identical afterwards and 0 history
@@ -647,7 +648,7 @@ the same table still show only Edit and Salary. Both screens were checked in Chr
 1440 with no horizontal overflow, and `requests.http` still passes 63/63 with the seed restored
 to `4|10|9|6|7|0`.
 
-## T31 — Project directory
+## T31: Project directory
 
 `GET /Projects` adds the project list. `ProjectsController` takes `IProjectService` and passes the
 result of `GetAllAsync` straight to the view as `IReadOnlyList<ProjectListItemDto>`; the list is
@@ -672,18 +673,19 @@ shown without alarm color" while reserving indigo for actions. The export won, s
 UI instruction makes it the source of truth and forbids inventing a visual direction beside an
 existing reference. The four tones are still distinct and never carry meaning by colour alone.
 `#i-clock` was missing from the shared sprite, so it was copied verbatim from
-`design-system/design-system.html` into `_Layout.cshtml` — the only file changed outside the two
+`design-system/design-system.html` into `_Layout.cshtml`, the only file changed outside the two
 the task names.
 
 Below 1024px the table swaps for one record card per project, as on the directory. The Details
-link targets `/Projects/Details/{id}`, which is T32 and answers the branded 404 until then. Verified
+link targets `/Projects/Details/{id}`, which was T32 at that point and answered the branded 404
+until then. Verified
 against SQL Server and in Chromium: PRJ-001 shows 2 active members and the database agrees;
 PRJ-003, PRJ-006 and PRJ-002 show the em dash; all six statuses render in their own tone; the
 Details links emit the right ids; keyboard tabbing reaches them with the 3px focus ring; the nav
 marks Projects current; and 360, 768, 1024 and 1440 all report `scrollWidth <= innerWidth`.
 `requests.http` still passes 63/63 and the seed was restored to `4|10|9|6|7|0`.
 
-## T32 — Project details and team assignment
+## T32: Project details and team assignment
 
 `GET /Projects/Details/{id}` loads the project through `GetDetailsAsync` and the assignable
 employees through `GetAssignableEmployeeOptionsAsync`, then composes `ProjectDetailsViewModel`:
@@ -714,7 +716,7 @@ Three defects were found and fixed while verifying, not by reading the source. T
 generation resolved `asp-action="Assign"` to the JSON endpoint. The MVC action now declares
 `[HttpPost("Projects/Assign/{id:int}", Name = "ProjectAssign")]` and the view uses `asp-route`, which
 removes the ambiguity instead of depending on candidate order. The allocation input rendered
-`value="0"` on a fresh form — the value the 1-100 rule always rejects — so it starts empty and hands
+`value="0"` on a fresh form (the value the 1-100 rule always rejects) so it starts empty and hands
 back the attempted value after a rejected post. And all three controls inherited the shared
 contract's framework messages client-side ("The field AllocationPercentage must be between 1 and
 100.") while the server pass rewrote them, so `data-val-*` attributes now carry the same sentences
@@ -729,7 +731,7 @@ the expected result, every rejected path writes nothing, and a post without the 
 answers 400. 360/768/1024/1440 report `scrollWidth <= innerWidth`, the table swaps to cards below
 1024px, and `requests.http` still passes 63/63. The seed was restored to `4|10|9|6|7|0`.
 
-## T33 — Budget dashboard
+## T33: Budget dashboard
 
 `GET /Dashboard` calls `IReportService.GetDepartmentSummaryAsync` and hands the
 `IReadOnlyList<DepartmentSummaryDto>` straight to the view. There is no view model: the DTO already
@@ -774,7 +776,7 @@ database fingerprint unchanged at `4|10|9|6|7|0`, the page renders no `<form>` a
 token, `requests.http` still passes 63/63, and 360/768/1024/1440 report `scrollWidth <= innerWidth`
 with the table/card swap at 1024px.
 
-## T33.5 — Sidebar, dashboard at `/`, filter panel
+## T33.5: Sidebar, dashboard at `/`, filter panel
 
 Three shell and list-layout changes, no functionality moved.
 
@@ -821,7 +823,7 @@ include-inactive, all three combined and the page clamp still behave as at T28, 
 directory is unchanged, `requests.http` passes 63/63, and the seed snapshot stays
 `4|10|9|6|7|0` across repeated GETs.
 
-## T33.6 - Form grid alignment and the project directory rename
+## T33.6: Form grid alignment and the project directory rename
 
 Two follow-ups on the screens the sidebar reflowed.
 
@@ -859,9 +861,76 @@ allocation all invalid) writes nothing - `4|10|9|6|7|0` before and after - while
 still creates the assignment and reports the success alert. `requests.http` passes 63/63 and the
 seed returns to `4|10|9|6|7|0`.
 
+## T33.7: Documentation and code-comment cleanup
+
+Documentation and comment pass over the whole repository, with no behaviour change: every source
+file in `src/` was compared before and after, and the diff contains comments only.
+
+**Docs.** `README.md`, `AGENTS.md`, `db/README.md` and the five files in `docs/` were read end to
+end against the code. The fixes:
+
+- Stale stage ranges: `docs/index.md` still said "T01–T29" and the README linked "T01–T33.6".
+- Prose em dashes replaced with commas, colons, semicolons and parentheses; the en dashes in
+  numeric and stage ranges stay, and so do the `&mdash;` characters the views render as a
+  missing-value marker.
+- `README.md`'s status paragraph was five long sentences in one block; it is now four short
+  paragraphs, one per module.
+- `docs/architecture.md` claimed the system manages attendance and leave records. The schema has
+  six tables and neither exists, so the paragraph now lists employees, departments, positions,
+  projects, assignments and salary history.
+- The architecture page listed `SelectOptionDto` among the "mutable classes with a parameterless
+  constructor". It is a positional record; the sentence now says which DTOs Dapper fills by hand
+  and which one is a record.
+- The repository list on the same page was one 11-line sentence; it is now a four-item list.
+- `docs/development-stages.md` carried a T28 line saying Edit, Salary, Create and Deactivate
+  "answer the branded 404 today", plus the T31 line saying project details "is T32 and answers
+  the branded 404 until then". Both are now written in the past tense, so the log stays accurate
+  without claiming the current state.
+
+**Comments.** 714 `//` lines and 24 `@*...*@` blocks across the four projects were reviewed with
+`antislop-code`. The pass removed comment lines and rewrote others, for a net reduction of 24
+comment lines and one Razor block:
+
+| Project | `//` lines before | after | Net |
+| ------- | ----------------: | ----: | --: |
+| `EnterpriseHR.Domain` | 24 | 24 | 0 |
+| `EnterpriseHR.DataAccess` | 163 | 163 | 0 |
+| `EnterpriseHR.Api` | 212 | 204 | -8 |
+| `EnterpriseHR.WebApp` | 315 | 299 | -16 |
+
+Removed:
+
+- `// Add services to the container.` and `// Configure the HTTP request pipeline.` template
+  leftovers in `Program.cs`, plus the boilerplate HSTS sentence from the same template.
+- The stale "land in later stages / answer the branded 404 until then" block in
+  `Views/Employees/Index.cshtml`.
+- "the check in step 5" in two `ProjectRepository` comments. There is no step 5 in that method;
+  both now point at the workload read that follows.
+- The duplicated `ToSelectList` rationale (three copies) and the duplicated
+  `ParseLimitsInInvariantCulture` paragraph (four copies). The full explanation stays on
+  `UpdateSalaryRequest.NewSalary`, which is the text the others reference.
+- Five `<param name="ct">Cancellation token for the request.</param>` and three
+  `<param name="id">Employee id.</param>` entries, which only echoed the signature.
+
+Corrected: four view comments said the table/card swap happens below 1024px. `site.css` moved it
+to 1279px at T33.5. The four comments now say the table shows from 1280px.
+
+Kept, because they carry a rule or a trap the code cannot show: the `UPDLOCK`/`ROWLOCK`
+concurrency rationale, the `splitOn` column-order contract, the `long` offset to avoid integer
+overflow, the LIKE escaping, the collation-based uniqueness, the advisory-check-plus-constraint
+pattern, the "salary and position are absent from the update statement (A3)" note, the
+`RouteValueDictionary` bool-serialization trap, the route-name clash with the API controller, and
+the untranslated-`SqlException` safety net.
+
+**Verified.** `dotnet build EnterpriseHRSystem.sln` reports 0 warnings and 0 errors. All six MVC
+screens, `Home/Index`, `Home/Privacy`, the three API routes and Swagger return 200; an unknown path
+returns 404. `requests.http` passes 63/63 and the seed is back to `4|10|9|6|7|0` with both test
+salaries restored. Chromium at 1440, 1280, 1024 and 768 shows the table at 1280px and up, record
+cards below it, and no horizontal overflow, which is what the corrected comments now say.
+
 ## Next
 
-The module set is complete: every nav item renders a real screen. T34 is the final review -
+The module set is complete: every nav item renders a real screen. T34 is the final review:
 scope check across the four projects, the production build, the design-system extensions recorded
 in `flag-for-t34.md`, and the deployment pass (Docker SQL setup, build, run) that was intentionally
 left for last. Each new endpoint still gets a group in `requests.http` and a section in

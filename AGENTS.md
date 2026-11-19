@@ -57,7 +57,7 @@ knowledge in `agents/memory/`. Do not duplicate content across them.
    are in place and you have confirmed they work (build, `db-init`, HTTP probe, whatever
    the change needs), check whether `docs/*.md`, `README.md` or `db/README.md` now say
    something wrong or incomplete and fix it. If nothing user-facing changed, leave them
-   alone — do not update docs for a change that was not verified. Long-form detail belongs
+   alone: do not update docs for a change that was not verified. Long-form detail belongs
    in `docs/` (linked from `docs/index.md`), not in the README.
 8. **Finish with memory and status.** After a task, add an entry to `agents/memory/` and a
    row to `agents/memory/1index.md`. Then update the **Project Status** table in

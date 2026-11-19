@@ -31,8 +31,6 @@
             <p class="page-description">Search by name or employee number, filter by department, and open a record to maintain it.</p>
         </div>
         <div class="page-actions">
-            @* Edit, Salary, Create and Deactivate land in later stages. The Tag Helpers already
-               emit their routes, so those targets answer the branded 404 until then. *@
             <a class="button primary" asp-action="Create">
                 <svg class="od-icon od-icon-control" aria-hidden="true" focusable="false"><use href="#i-plus" /></svg>
                 <span>Create new</span>
@@ -180,8 +178,8 @@
                 </table>
             </div>
 
-            @* Below 1024px the export swaps the table for one record card per row. Same data,
-               same actions, no horizontal scrolling. *@
+            @* From 1280px the table shows; below it the export swaps in one record card per
+               row. Same data, same actions, no horizontal scrolling. *@
             <div class="mobile-records">
                 @foreach (var employee in result.Items)
                 {

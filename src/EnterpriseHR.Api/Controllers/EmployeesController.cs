@@ -36,7 +36,6 @@ public sealed class EmployeesController : ApiControllerBase
     /// <c>pageSize</c> (default 10, max 100). <c>isActive</c> is accepted but ignored: this
     /// endpoint only ever returns active employees.
     /// </param>
-    /// <param name="ct">Cancellation token for the request.</param>
     /// <returns>
     /// <see cref="PagedResult{T}"/> of <see cref="EmployeeDto"/>. An out-of-range <c>page</c>
     /// is clamped, and a <c>page</c> past the last page returns an empty <c>items</c> with the
@@ -79,12 +78,10 @@ public sealed class EmployeesController : ApiControllerBase
     /// <summary>
     /// Changes an employee's monthly salary and, when supplied, their position.
     /// </summary>
-    /// <param name="id">Employee id.</param>
     /// <param name="request">
     /// <c>newSalary</c> (monthly IDR), optional <c>newPositionId</c> (omit to keep the current
     /// position) and a <c>reason</c> recorded on the history row.
     /// </param>
-    /// <param name="ct">Cancellation token for the request.</param>
     /// <returns>
     /// The refreshed <see cref="EmployeeDto"/>, read back after the write so the caller sees the
     /// stored salary and position rather than an echo of the request.

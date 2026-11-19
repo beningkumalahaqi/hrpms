@@ -32,8 +32,6 @@ public sealed class ProjectsController : ApiControllerBase
     /// <summary>
     /// Gets one project with every employee assigned to it, including former staff.
     /// </summary>
-    /// <param name="id">Project id.</param>
-    /// <param name="ct">Cancellation token for the request.</param>
     /// <returns>
     /// The <see cref="ProjectDetailDto"/>, whose <c>members</c> array carries each assignment's
     /// role, allocation and <c>isEmployeeActive</c> flag. A member who has since been
@@ -63,12 +61,10 @@ public sealed class ProjectsController : ApiControllerBase
     /// <summary>
     /// Assigns an employee to a project.
     /// </summary>
-    /// <param name="id">Project id.</param>
     /// <param name="request">
     /// <c>employeeId</c>, <c>roleInProject</c> (100 characters max) and
     /// <c>allocationPercentage</c> (1-100).
     /// </param>
-    /// <param name="ct">Cancellation token for the request.</param>
     /// <returns>
     /// 201 with the new assignment's id and the values it was stored with, and a
     /// <c>Location</c> header pointing at this project's details.

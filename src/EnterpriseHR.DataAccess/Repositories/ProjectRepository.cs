@@ -68,7 +68,7 @@ public sealed class ProjectRepository(IDbConnectionFactory factory)
 
     // UPDLOCK/ROWLOCK on the employee is what serializes concurrent assignments of the same
     // person: the second request waits here, then sees the first one's row when it reads the
-    // workload in step 5.
+    // workload further down.
     private const string SelectEmployeeForAssignmentSql = """
         SELECT Id, IsActive, FullName
         FROM dbo.Employees WITH (UPDLOCK, ROWLOCK)
@@ -167,7 +167,7 @@ public sealed class ProjectRepository(IDbConnectionFactory factory)
             async (conn, tx) =>
             {
                 // Locking the employee serializes every concurrent assignment that would
-                // change this person's workload, so the check in step 5 cannot be raced.
+                // change this person's workload, so the 100% check below cannot be raced.
                 var employee = await conn.QuerySingleOrDefaultAsync<EmployeeAssignmentState>(
                     new CommandDefinition(SelectEmployeeForAssignmentSql,
                         new { request.EmployeeId }, transaction: tx, cancellationToken: ct));

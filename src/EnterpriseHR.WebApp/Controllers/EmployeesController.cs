@@ -480,11 +480,7 @@ public class EmployeesController : Controller
         model.Managers = ToSelectList(options.Managers, model.ManagerId);
     }
 
-    /// <summary>
-    /// The lookup rows as select items for the given selection. Value and Text come from
-    /// <see cref="SelectOptionDto"/> by name: without them a positional record's ToString()
-    /// would become both the value and the label.
-    /// </summary>
+    /// <summary>The lookup rows as select items for the given selection.</summary>
     private static SelectList ToSelectList(
         IReadOnlyList<SelectOptionDto> options,
         int? selectedValue)

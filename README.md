@@ -19,7 +19,7 @@ Both modules serve from the same `EnterpriseHR.WebApp` process on one origin:
 `EnterpriseHR.Api` is a class library of controllers that the host discovers, so the
 dashboard lives at `/` and the API under `/api/**`. Both call the same
 `EnterpriseHR.DataAccess` project, and business rules live in `EnterpriseHR.Domain`, so the
-dashboard and the API apply identical validation and calculation logic. No EF Core — all
+dashboard and the API apply identical validation and calculation logic. No EF Core: all
 access is Dapper over hand-written, parameterized SQL.
 
 ## Structure
@@ -67,9 +67,8 @@ second host and no port 5200.
 `dotnet build EnterpriseHRSystem.sln` builds with no warnings. SQL Server must be up and
 `EnterpriseHRDB` initialized before the host serves database-backed requests.
 
-Full setup — `.env` rules, connection-string overrides, `db-init` verification, reset
-steps, and the Apple Silicon caveats — is in
-[docs/getting-started.md](docs/getting-started.md).
+Full setup (`.env` rules, connection-string overrides, `db-init` verification, reset steps and
+the Apple Silicon caveats) is in [docs/getting-started.md](docs/getting-started.md).
 
 ## Project status
 
@@ -95,28 +94,30 @@ steps, and the Apple Silicon caveats — is in
 | T33 | Budget dashboard: department summary with over-budget rows, status badges and totals | done |
 | T33.5 | Sidebar navigation, dashboard at `/`, and a reorganised employee filter panel | done |
 | T33.6 | Form grid alignment on Create/Edit/add-member, and "project directory" naming | done |
+| T33.7 | Documentation and code-comment cleanup across the repository | done |
 | T34+ | Final review and deployment | pending |
 
 The database, domain layer, data-access foundation, services and the API infrastructure
 (envelope, validation mapping, exception mapping, Swagger) are complete, and MVC plus the API
-serve from one process. The employee, project and report endpoints are live, and the MVC shell
-uses the HR Workspace design system: its persistent sidebar with a mobile drawer, shared alerts
-and a pager. The dashboard is the landing page at `/`, so opening the app shows department
-budgets immediately.
-The employee directory is the first real screen: it searches by name or number, filters by
-department, includes former staff on request and pages the results. Employees can be created,
-edited, deactivated through a confirmation card, and given a raise or promotion that writes a
-salary-history row. The project directory follows the same pattern: every project with its
-department, dates, status badge and active team size, plus a link into its details. Each project's
-detail page lists its team with per-member allocation bars, keeps former members marked inactive,
-and offers an add-member form whose workload cap is enforced by the repository and reported back on
-the same screen. The dashboard closes the module set: one row per department comparing monthly
-payroll with its budget, totals on top, and the departments whose payroll exceeds the budget marked
-with the error surface and a labelled badge.
+serve from one process. The employee, project and report endpoints are live.
+
+The MVC shell uses the HR Workspace design system: a persistent sidebar with a mobile drawer,
+shared alerts and a pager. The dashboard is the landing page at `/`, so opening the app shows
+department budgets immediately. One row per department compares monthly payroll with its budget,
+totals sit on top, and departments whose payroll exceeds the budget carry the error surface and a
+labelled badge.
+
+The employee directory searches by name or number, filters by department, includes former staff on
+request and pages the results. Employees can be created, edited, deactivated through a confirmation
+card, and given a raise or promotion that writes a salary-history row. The project directory lists
+every project with its department, dates, status badge and active team size, and links into a
+detail page with per-member allocation bars, former members marked inactive, and an add-member form
+whose workload cap is enforced by the repository and reported back on the same screen.
+
 The API can be exercised end to end with
 [`src/EnterpriseHR.Api/requests.http`](src/EnterpriseHR.Api/requests.http), whose scenarios are
-tabulated in [docs/TEST-SCENARIO-API.md](docs/TEST-SCENARIO-API.md).
-Stage-by-stage detail is in [docs/development-stages.md](docs/development-stages.md).
+tabulated in [docs/TEST-SCENARIO-API.md](docs/TEST-SCENARIO-API.md). Stage-by-stage detail is in
+[docs/development-stages.md](docs/development-stages.md).
 
 Out of scope unless separately requested: authentication and authorization, EF Core or any
 migration tool, test projects, CI pipelines, and containerization of the .NET applications.
@@ -130,7 +131,7 @@ migration tool, test projects, CI pipelines, and containerization of the .NET ap
 | [docs/architecture.md](docs/architecture.md) | Projects, layer responsibilities, data-access rules, design-system contract, scope. |
 | [docs/database.md](docs/database.md) | Schema, constraints, stored procedure, seed fixtures. |
 | [docs/TEST-SCENARIO-API.md](docs/TEST-SCENARIO-API.md) | API scenario matrix, paired with the runnable `src/EnterpriseHR.Api/requests.http`. |
-| [docs/development-stages.md](docs/development-stages.md) | T01–T33.6 stage log and what comes next. |
+| [docs/development-stages.md](docs/development-stages.md) | T01–T33.7 stage log and what comes next. |
 | [db/README.md](db/README.md) | Rules for the numbered SQL init scripts. |
 | [AGENTS.md](AGENTS.md) | Working rules for coding agents, including where each kind of knowledge belongs. |
 
