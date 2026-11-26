@@ -15,6 +15,9 @@ namespace EnterpriseHR.WebApp.Controllers;
 /// assignment writes through the same <see cref="IProjectService.AssignAsync"/> that answers
 /// <c>/api/projects/{id}/assign</c>, so the screens and the API cannot drift apart.
 /// </summary>
+// The MVC controller is not part of the API surface. Assign is the only action with an
+// attribute route, so ApiExplorer would otherwise document it in Swagger next to /api/**.
+[ApiExplorerSettings(IgnoreApi = true)]
 public class ProjectsController : Controller
 {
     private readonly IProjectService _projects;
