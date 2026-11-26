@@ -13,7 +13,7 @@ container after it reports healthy.
 | ------ | -------- | ------ |
 | `01_schema.sql` | Database and schema creation | present (T02) |
 | `02_sp_GetDepartmentSummary.sql` | `dbo.sp_GetDepartmentSummary` department report | present (T03) |
-| `03_seed.sql` | Seed data: 4 departments, 7 positions, 10 employees, 6 projects, 7 assignments | present (T04) |
+| `03_seed.sql` | Seed data: 4 departments, 7 positions, 10 employees, 16 projects, 7 assignments | present (T04) |
 
 Rules for these scripts:
 
@@ -35,8 +35,9 @@ Expect `db-init` to print `Running /scripts/01_schema.sql` followed by
 replaces the definition instead of failing. Its result-set column aliases are the
 `DepartmentSummaryDto` property names and must stay that way.
 
-`03_seed.sql` guards the whole seed with `IF NOT EXISTS (SELECT 1 FROM dbo.Departments)`,
-so it inserts nothing once the database has data. Foreign keys are resolved with
+`03_seed.sql` guards the base seed with `IF NOT EXISTS (SELECT 1 FROM dbo.Departments)`, then
+appends ten extra projects (`PRJ-007` to `PRJ-016`) with a per-code `NOT EXISTS`, so an existing
+database can receive them without a reseed. Foreign keys are resolved with
 subselects on `DepartmentCode`, `Title`, `EmployeeNumber` and `ProjectCode`, never
 hard-coded identity values, and employees are inserted managers-first because
 `ManagerId` references `Employees`. It leaves `SalaryHistories` empty. The rows are the

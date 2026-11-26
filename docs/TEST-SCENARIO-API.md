@@ -21,7 +21,7 @@ dotnet run --project src/EnterpriseHR.WebApp              # serves /api/** on po
 ```
 
 The expectations assume a freshly seeded database
-(`4 departments, 10 employees, 9 active, 6 projects, 7 assignments, 0 salary histories`).
+(`4 departments, 10 employees, 9 active, 16 projects, 7 assignments, 0 salary histories`).
 Two groups in `requests.http` write rows; both are closed cycles, so a full top-to-bottom run
 leaves only the assignment row that the create scenario adds. Clean-up statements are at the
 top of `requests.http`.

@@ -3,7 +3,7 @@
 /*                                                                     */
 /* Test-matrix reference data for the dashboard and the API:           */
 /*   4 departments, 7 positions, 10 employees,                         */
-/*   6 projects, 7 project assignments.                                */
+/*   16 projects, 7 project assignments.                               */
 /* SalaryHistories is left empty on purpose.                           */
 /*                                                                     */
 /* Idempotent: the whole seed is skipped when Departments already has   */
@@ -164,4 +164,42 @@ BEGIN
 
     COMMIT TRANSACTION;
 END;
+GO
+
+/* ------------------------------------------------------------------ */
+/* Additional projects (10)                                            */
+/*                                                                     */
+/* Additive and idempotent by ProjectCode, so an existing database can  */
+/* receive them without deleting the volume and reseeding from scratch. */
+/* Statuses are mixed on purpose: 3 Active, 3 Planning, 3 Completed,    */
+/* 1 Cancelled. None has assignments, so the workload fixture and the   */
+/* project member counts are unchanged.                                 */
+/* ------------------------------------------------------------------ */
+BEGIN TRANSACTION;
+
+INSERT INTO dbo.Projects
+    (ProjectCode, ProjectName, DepartmentId, StartDate, EndDate, Status)
+SELECT v.ProjectCode,
+       v.ProjectName,
+       (SELECT Id FROM dbo.Departments WHERE DepartmentCode = v.DepartmentCode),
+       v.StartDate,
+       v.EndDate,
+       v.Status
+FROM (VALUES
+    ('PRJ-007', N'Data Warehouse',       'IT',  CAST('2026-03-02' AS DATE), CAST('2026-12-31' AS DATE), 'Active'),
+    ('PRJ-008', N'Talent Review',        'HR',  CAST('2026-04-06' AS DATE), CAST(NULL AS DATE),          'Active'),
+    ('PRJ-009', N'Forecast Model',       'FIN', CAST('2027-01-11' AS DATE), CAST('2027-06-30' AS DATE), 'Planning'),
+    ('PRJ-010', N'Facilities Tracker',   'OPS', CAST('2026-02-09' AS DATE), CAST(NULL AS DATE),          'Active'),
+    ('PRJ-011', N'Security Hardening',   'IT',  CAST('2027-02-01' AS DATE), CAST(NULL AS DATE),          'Planning'),
+    ('PRJ-012', N'Onboarding Refresh',   'HR',  CAST('2025-03-03' AS DATE), CAST('2025-08-29' AS DATE), 'Completed'),
+    ('PRJ-013', N'Tax Automation',       'FIN', CAST('2025-05-05' AS DATE), CAST('2025-11-28' AS DATE), 'Completed'),
+    ('PRJ-014', N'Vendor Consolidation', 'OPS', CAST('2027-03-01' AS DATE), CAST('2027-09-30' AS DATE), 'Planning'),
+    ('PRJ-015', N'Legacy CRM',           'IT',  CAST('2025-06-02' AS DATE), CAST('2025-12-19' AS DATE), 'Cancelled'),
+    ('PRJ-016', N'Asset Inventory',      'OPS', CAST('2025-09-01' AS DATE), CAST('2026-01-30' AS DATE), 'Completed')
+) AS v (ProjectCode, ProjectName, DepartmentCode, StartDate, EndDate, Status)
+WHERE NOT EXISTS (
+    SELECT 1 FROM dbo.Projects p WHERE p.ProjectCode = v.ProjectCode
+);
+
+COMMIT TRANSACTION;
 GO

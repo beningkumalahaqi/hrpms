@@ -73,7 +73,7 @@ operation leaves no partial write.
 ├── db/                         # numbered SQL init scripts, run by db-init
 │   ├── 01_schema.sql           #   EnterpriseHRDB, six tables, keys, indexes
 │   ├── 02_sp_GetDepartmentSummary.sql
-│   └── 03_seed.sql             #   fixture: 4 departments, 10 employees, 6 projects
+│   └── 03_seed.sql             #   fixture: 4 departments, 10 employees, 16 projects
 ├── design-system/              # exported HR Workspace UI reference
 ├── docs/                       # long-form documentation
 ├── src/

@@ -17,8 +17,9 @@ Scripts run in filename order and must stay idempotent. `01_schema.sql` guards e
 object with `IF OBJECT_ID(..., 'U') IS NULL` and every index with an `IF NOT EXISTS` check
 against `sys.indexes`, but it never alters an existing table: after changing a table
 definition, recreate the volume (`docker compose down -v`) before running `db-init`
-again. `02_...` uses `CREATE OR ALTER PROCEDURE`. `03_seed.sql` skips itself entirely once
-`dbo.Departments` has a row.
+again. `02_...` uses `CREATE OR ALTER PROCEDURE`. `03_seed.sql` skips the base fixture once
+`dbo.Departments` has a row, then appends the ten additive projects by `ProjectCode`, so an
+existing database receives them without a reseed.
 
 ## Schema
 
@@ -59,7 +60,7 @@ has no employees, which exercises the `LEFT JOIN`, and `IT` is deliberately over
 | `Departments` | 4 | `IT` 70,000,000; `HR` 60,000,000; `FIN` 50,000,000; `OPS` 20,000,000 (no employees). |
 | `Positions` | 7 | Monthly IDR ranges, junior developer 6,000,000–12,000,000 through the manager bands. |
 | `Employees` | 10 | Three top-level managers with `ManagerId = NULL`, inserted first because the FK is self-referencing; `E005` is inactive. |
-| `Projects` | 6 | Mixed statuses across `IT`, `HR`, `FIN`. |
+| `Projects` | 16 | Six base projects plus ten additive ones (`PRJ-007`–`PRJ-016`); mixed statuses across all four departments; the additive projects have no assignments. |
 | `ProjectAssignments` | 7 | `AssignedDate` mirrors the project start date so the seed is deterministic. |
 | `SalaryHistories` | 0 | Left empty on purpose. |
 
